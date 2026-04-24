@@ -1830,11 +1830,32 @@ function renderHistorial(){
   const totalFiltrado = data.reduce((s,p)=>s+Number(p.monto),0);
   const totalGlobal = state.pagos.reduce((s,p)=>s+Number(p.monto),0);
 
-  // Month/year breakdown for filtered data
+  // Month/year breakdown — always produces YYYY-MM keys
   const byMes = {};
+  const byMesCount = {};
   data.forEach(p=>{
-    const mesKey = (p.fecha&&p.fecha.length>=7&&!/^\d{5}$/.test(p.fecha))?p.fecha.substring(0,7):(getAnoPago(p)||p.periodo||'');
-    byMes[mesKey] = (byMes[mesKey]||0) + Number(p.monto);
+    const ano = getAnoPago(p);
+    if(!ano) return;
+    // Get month from fecha
+    let mes = '00';
+    const f = String(p.fecha||'').trim();
+    if(f && !/^\d{4,5}$/.test(f)){
+      // YYYY-MM-DD
+      const ymd = /^(\d{4})-(\d{2})/.exec(f);
+      if(ymd) mes = ymd[2];
+      // DD/MM/YYYY
+      else {
+        const dmy = /^\d{1,2}[\/\-](\d{1,2})[\/\-]\d{4}/.exec(f);
+        if(dmy) mes = String(dmy[1]).padStart(2,'0');
+      }
+    } else if(/^\d{4,5}$/.test(f)) {
+      // Excel serial — get month from converted date
+      const date = new Date(Date.UTC(1899,11,30)+Number(f)*86400000);
+      mes = String(date.getUTCMonth()+1).padStart(2,'0');
+    }
+    const key = ano + '-' + mes;
+    byMes[key] = (byMes[key]||0) + Number(p.monto);
+    byMesCount[key] = (byMesCount[key]||0) + 1;
   });
 
   setContent(`
@@ -1925,15 +1946,42 @@ function renderHistorial(){
     </div>
 
     <!-- RESUMEN POR MES (cuando hay filtro de año o sala) -->
-    ${(hFiltros.anio||hFiltros.sala)&&Object.keys(byMes).length>0?`
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px">
-      <div style="font-size:.75rem;font-weight:700;margin-bottom:10px">📅 Resumen mensual del resultado filtrado</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${Object.entries(byMes).sort().map(([k,v])=>`
-          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:120px">
-            <div style="font-size:.68rem;color:var(--text3)">${k}</div>
-            <div style="font-size:.95rem;font-weight:700;color:var(--green)">${fmtMoney(v)}</div>
-          </div>`).join('')}
+    ${Object.keys(byMes).length>0?`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:14px">
+      <div style="font-size:.75rem;font-weight:700;margin-bottom:12px;color:var(--text)">
+        📅 Resumen mensual del resultado filtrado
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px" id="resumen-mes-grid">
+        <!-- Total acumulado -->
+        <div style="background:rgba(16,185,129,.12);border:1.5px solid rgba(16,185,129,.35);border-radius:10px;padding:11px 14px">
+          <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin-bottom:5px">Total acumulado</div>
+          <div style="font-size:1rem;font-weight:800;color:var(--green)">${fmtMoney(Object.values(byMes).reduce((s,v)=>s+v,0))}</div>
+          <div style="font-size:.63rem;color:var(--text3);margin-top:3px">${Object.keys(byMes).length} meses · ${Object.values(byMesCount).reduce((s,v)=>s+v,0)} pagos</div>
+        </div>
+        <!-- Mes a mes descendente -->
+        ${(()=>{
+          const NM=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+          const total = Object.values(byMes).reduce((s,v)=>s+v,0);
+          return Object.entries(byMes)
+            .sort((a,b)=>b[0].localeCompare(a[0]))
+            .map(([k,v])=>{
+              const [ano,mesStr] = k.split('-');
+              const mesNum = parseInt(mesStr||0);
+              const mesNom = NM[mesNum]||('Mes '+mesStr);
+              const cnt = byMesCount[k]||0;
+              const pct = total>0 ? Math.round(v/total*100) : 0;
+              return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;position:relative;overflow:hidden">'
+                +'<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--border)"></div>'
+                +'<div style="position:absolute;bottom:0;left:0;height:3px;background:var(--accent);width:'+pct+'%"></div>'
+                +'<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:4px">'+mesNom+' '+ano+'</div>'
+                +'<div style="font-size:.98rem;font-weight:700;color:var(--text)">'+fmtMoney(v)+'</div>'
+                +'<div style="display:flex;justify-content:space-between;margin-top:4px">'
+                +'<span style="font-size:.62rem;color:var(--text3)">'+cnt+' pago'+(cnt!==1?'s':'')+'</span>'
+                +'<span style="font-size:.62rem;font-weight:600;color:var(--accent)">'+pct+'%</span>'
+                +'</div>'
+                +'</div>';
+            }).join('');
+        })()}
       </div>
     </div>`:''}
 
