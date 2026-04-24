@@ -420,6 +420,7 @@ tbody tr:last-child{border-bottom:none;}
       <div class="sb-logo-text" style="text-align:center">
         <h2 style="font-size:.72rem;line-height:1.2">Sistema de Control</h2>
         <p id="sb-periodo" style="font-size:.6rem">Periodo 2025</p>
+        <p style="font-size:.55rem;color:var(--text3);margin-top:1px;letter-spacing:.03em">V1.0</p>
       </div>
     </div>
   </div>
@@ -759,7 +760,7 @@ function togglePeriodoDropdown(){
   if(opts){
     opts.innerHTML = allPeriodos.map(p=>{
       const na = state.alumnos.filter(a=>a.periodo===p).length;
-      const np = state.pagos.filter(x=>(x.fecha||'').substring(0,4)===p||(!x.fecha&&x.periodo===p)).length;
+      const np = state.pagos.filter(x=>getAnoPago(x)===p).length;
       const isActive = p === state.currentPeriodo;
       return `<div class="periodo-opt ${isActive?'active':''}" onclick="selectPeriodo('${p}')">
         <span>📅 ${p}</span>
@@ -891,6 +892,30 @@ function fmtDate(d){
   }catch{}
   return s;
 }
+// Returns the 4-digit year string from any pago.fecha format
+// Handles: Excel serial (46130), YYYY-MM-DD, DD/MM/YYYY, ISO string
+function getAnoPago(p){
+  const d = p.fecha;
+  if(!d && !p.periodo) return '';
+  const s = String(d||'').trim();
+  if(!s) return String(p.periodo||'').substring(0,4);
+  // Excel serial number (4-5 digits, 40000-60000 range = years 2009-2064)
+  if(/^\d{4,5}$/.test(s)){
+    const n = Number(s);
+    if(n >= 40000 && n <= 60000){
+      const date = new Date(Date.UTC(1899,11,30) + n*86400000);
+      return String(date.getUTCFullYear());
+    }
+  }
+  // YYYY-MM-DD or YYYY/MM/DD
+  const ymd = /^(\d{4})[\-\/]/.exec(s);
+  if(ymd) return ymd[1];
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmy = /^\d{1,2}[\-\/]\d{1,2}[\-\/](\d{4})$/.exec(s);
+  if(dmy) return dmy[1];
+  // Fallback to stored periodo
+  return String(p.periodo||'').substring(0,4);
+}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function salaBadge(s){
   if(!s)return '<span class="badge badge-sin-sala">Sin sala</span>';
@@ -930,9 +955,9 @@ function renderDashboard(){
   const salas = ['VERDE','ROJA','AZUL','AMARILLA'];
   const salaCounts = {};
   salas.forEach(s=>salaCounts[s]=vigentes.filter(a=>a.sala===s).length);
-  const totalPagado = state.pagos.filter(p=>(p.fecha||'').substring(0,4)===state.currentPeriodo||(!p.fecha&&p.periodo===state.currentPeriodo)).reduce((s,p)=>s+Number(p.monto),0);
+  const totalPagado = state.pagos.filter(p=>getAnoPago(p)===state.currentPeriodo).reduce((s,p)=>s+Number(p.monto),0);
   const pagosHoy = state.pagos.filter(p=>p.fecha===new Date().toISOString().split('T')[0]).length;
-  const recentPagos = [...state.pagos].filter(p=>(p.fecha||''). substring(0,4)===state.currentPeriodo||p.periodo===state.currentPeriodo).reverse().slice(0,5);
+  const recentPagos = [...state.pagos].filter(p=>getAnoPago(p)===state.currentPeriodo).reverse().slice(0,5);
   const recentAlumnos = [...state.alumnos].filter(a=>a.periodo===state.currentPeriodo).reverse().slice(0,5);
 
   setContent(`
@@ -966,7 +991,7 @@ function renderDashboard(){
       <div class="stat-card c-green">
         <div class="stat-label">Total Ingresado ${state.currentPeriodo}</div>
         <div class="stat-num" style="font-size:1.3rem">${fmtMoney(totalPagado)}</div>
-        <div class="stat-sub">${state.pagos.filter(p=>p.periodo===state.currentPeriodo).length} pagos registrados</div>
+        <div class="stat-sub">${state.pagos.filter(p=>getAnoPago(p)===state.currentPeriodo).length} pagos registrados</div>
         <div class="stat-icon">💰</div>
       </div>
     </div>
@@ -1609,7 +1634,7 @@ function savePago(){
     fecha:document.getElementById('pf-fecha').value,
     mensualidad:document.getElementById('pf-mensualidad').value,
     comentario:document.getElementById('pf-comentario').value,
-    periodo:(document.getElementById('pf-fecha').value||'').substring(0,4)||state.currentPeriodo,
+    periodo:getAnoPago({fecha:document.getElementById('pf-fecha').value||'',periodo:state.currentPeriodo}),
     registradoPor:state.currentUser?.nombre||'',
   };
   state.pagos.push(pago);
@@ -1683,7 +1708,7 @@ function saveEditPago(){
     fecha: document.getElementById('pf-fecha').value,
     mensualidad: document.getElementById('pf-mensualidad').value,
     comentario: document.getElementById('pf-comentario').value,
-    periodo: (document.getElementById('pf-fecha').value||'').substring(0,4)||state.pagos.find(p=>p.id===pagoId)?.periodo||state.currentPeriodo,
+    periodo: getAnoPago({fecha:document.getElementById('pf-fecha').value||'',periodo:state.pagos.find(p=>p.id===pagoId)?.periodo||state.currentPeriodo}),
     editadoPor: state.currentUser?.nombre||'',
     editadoEn: new Date().toISOString(),
   };
@@ -1699,7 +1724,7 @@ function saveEditPago(){
 }
 
 function renderPagos(){
-  const periodoData=state.pagos.filter(p=>(p.fecha||'').substring(0,4)===state.currentPeriodo||(!p.fecha&&p.periodo===state.currentPeriodo));
+  const periodoData=state.pagos.filter(p=>getAnoPago(p)===state.currentPeriodo);
   const total=periodoData.reduce((s,p)=>s+Number(p.monto),0);
   const data=[...periodoData].reverse();
   setContent(`
@@ -1770,18 +1795,18 @@ let hFiltros = {anio:'', mes:'', sala:'', buscar:''};
 
 function renderHistorial(){
   const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const periodos = [...new Set(state.pagos.map(p=>(p.fecha||'').substring(0,4)||p.periodo).filter(Boolean))].sort((a,b)=>b-a);
+  const periodos = [...new Set(state.pagos.map(p=>getAnoPago(p)).filter(Boolean))].sort((a,b)=>b-a);
   const anios = [...new Set(state.pagos.map(p=>
-    (p.fecha||'').substring(0,4) || p.periodo || state.currentPeriodo
+    getAnoPago(p) || state.currentPeriodo
   ).filter(Boolean))].sort((a,b)=>b-a);
 
   // Apply filters
   let data = [...state.pagos];
   if(hFiltros.anio){
-    data = data.filter(p=> (p.fecha||'').substring(0,4)===hFiltros.anio);
+    data = data.filter(p=>getAnoPago(p)===hFiltros.anio);
   }
   if(hFiltros.mes){
-    data = data.filter(p=> (p.fecha||'').substring(5,7) === hFiltros.mes);
+    data = data.filter(p=>{const f=p.fecha||'';const ms=f.length>=7?f.substring(5,7):(getAnoPago(p)?'':'');return ms===hFiltros.mes;});
   }
   if(hFiltros.sala){
     data = data.filter(p=>{
@@ -1808,7 +1833,7 @@ function renderHistorial(){
   // Month/year breakdown for filtered data
   const byMes = {};
   data.forEach(p=>{
-    const mesKey = (p.fecha||'').substring(0,7) || p.periodo;
+    const mesKey = (p.fecha&&p.fecha.length>=7&&!/^\d{5}$/.test(p.fecha))?p.fecha.substring(0,7):(getAnoPago(p)||p.periodo||'');
     byMes[mesKey] = (byMes[mesKey]||0) + Number(p.monto);
   });
 
@@ -1826,8 +1851,8 @@ function renderHistorial(){
         <div class="stat-sub">${data.length} pagos encontrados</div>
       </div>
       ${periodos.slice(0,3).map(p=>{
-        const t=state.pagos.filter(x=>(x.fecha||'').substring(0,4)===p).reduce((s,x)=>s+Number(x.monto),0);
-        const np=state.pagos.filter(x=>(x.fecha||'').substring(0,4)===p).length;
+        const t=state.pagos.filter(x=>getAnoPago(x)===p).reduce((s,x)=>s+Number(x.monto),0);
+        const np=state.pagos.filter(x=>getAnoPago(x)===p).length;
         return `<div class="stat-card c-gold">
           <div class="stat-label">Año ${p}</div>
           <div class="stat-num" style="font-size:1.1rem">${fmtMoney(t)}</div>
@@ -1936,9 +1961,9 @@ function renderHistorial(){
               const mesNum = fechaStr.substring(5,7);
               const MESES_CORTOS=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
               const mesNombre = mesNum?MESES_CORTOS[parseInt(mesNum)]||'':'';
-              const anioStr = fechaStr.substring(0,4);
+              const anioStr = getAnoPago(p);
               return `<tr>
-                <td><span class="badge badge-m">${(p.fecha||'').substring(0,4)||p.periodo}</span></td>
+                <td><span class="badge badge-m">${getAnoPago(p)||p.periodo}</span></td>
                 <td>
                   <div style="font-size:.78rem;font-weight:600">${fmtDate(p.fecha)}</div>
                   ${mesNombre?`<div style="font-size:.65rem;color:var(--text3)">${mesNombre} ${anioStr}</div>`:''}
@@ -1965,8 +1990,8 @@ function renderHistorial(){
 function exportHistorialFiltrado(){
   // Re-apply same filters from state
   let data = [...state.pagos];
-  if(hFiltros.anio) data=data.filter(p=>(p.fecha||'').startsWith(hFiltros.anio)||p.periodo===hFiltros.anio);
-  if(hFiltros.mes) data=data.filter(p=>(p.fecha||'').substring(5,7)===hFiltros.mes);
+  if(hFiltros.anio) data=data.filter(p=>getAnoPago(p)===hFiltros.anio);
+  if(hFiltros.mes) data=data.filter(p=>{const f=p.fecha||'';return (f.length>=7&&!/^\d{5}$/.test(f))?f.substring(5,7)===hFiltros.mes:false;});
   if(hFiltros.sala) data=data.filter(p=>{const a=state.alumnos.find(x=>x.id===p.alumnoId);return a&&a.sala===hFiltros.sala;});
   if(hFiltros.buscar){
     const q=hFiltros.buscar.toLowerCase();
@@ -1993,7 +2018,7 @@ function renderResumen(){
         const alumnos=state.alumnos.filter(a=>a.sala===sala&&a.situacion==='VIGENTE'&&a.periodo===state.currentPeriodo);
         const pagosSala=state.pagos.filter(p=>{
           const a=state.alumnos.find(x=>x.id===p.alumnoId);
-          const pagoYear=(p.fecha||'').substring(0,4)||p.periodo;
+          const pagoYear=getAnoPago(p);
           return a&&a.sala===sala&&pagoYear===state.currentPeriodo;
         });
         const totalSala=pagosSala.reduce((s,p)=>s+Number(p.monto),0);
@@ -2025,7 +2050,7 @@ function renderResumen(){
           <tbody>
             ${state.alumnos.filter(a=>a.periodo===state.currentPeriodo&&a.situacion==='VIGENTE').map(a=>{
               const pagosMes={};
-              state.pagos.filter(p=>p.alumnoId===a.id&&((p.fecha||'').substring(0,4)===state.currentPeriodo||p.periodo===state.currentPeriodo)).forEach(p=>{
+              state.pagos.filter(p=>p.alumnoId===a.id&&getAnoPago(p)===state.currentPeriodo).forEach(p=>{
                 pagosMes[p.mensualidad]=(pagosMes[p.mensualidad]||0)+Number(p.monto);
               });
               const total=Object.values(pagosMes).reduce((s,v)=>s+v,0);
@@ -2534,7 +2559,7 @@ function ejecutarImport(){
         fecha,
         mensualidad: getStr(row,'MENSUALIDAD','mensualidad','Mensualidad','CONCEPTO'),
         comentario:  getStr(row,'COMENTARIO','comentario','Comentario','OBSERVACIONES'),
-        periodo:     fecha?fecha.substring(0,4)||periodoRow:periodoRow,
+        periodo:     fecha?getAnoPago({fecha:fecha,periodo:periodoRow}):periodoRow,
       };
       state.pagos.push(pago);
       imported++;
@@ -2835,7 +2860,7 @@ function renderBackup(){
             ${periodos.length===0?'<span style="font-size:.8rem;color:var(--text3)">Sin datos aún</span>':
             periodos.map(p=>{
               const na=state.alumnos.filter(a=>a.periodo===p).length;
-              const np=state.pagos.filter(x=>x.periodo===p).length;
+              const np=state.pagos.filter(x=>getAnoPago(x)===p).length;
               return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:130px">
                 <div style="font-size:.8rem;font-weight:700;margin-bottom:3px">📅 ${p}</div>
                 <div style="font-size:.7rem;color:var(--text3)">${na} alumnos · ${np} pagos</div>
@@ -3300,7 +3325,7 @@ function exportAlumnosExcel(){
   exportToExcel(data,'Alumnos_'+state.currentPeriodo,'alumnos_'+state.currentPeriodo+'.xlsx');
 }
 function exportPagosExcel(all=false){
-  const source=all?state.pagos:state.pagos.filter(p=>(p.fecha||'').substring(0,4)===state.currentPeriodo||(!p.fecha&&p.periodo===state.currentPeriodo));
+  const source=all?state.pagos:state.pagos.filter(p=>getAnoPago(p)===state.currentPeriodo);
   const data=source.map((p,i)=>{
     const a=state.alumnos.find(x=>x.id===p.alumnoId)||{nombre:p.rut||'—',sala:''};
     return {'N°':i+1,'Periodo':p.periodo,'N° Boleta':p.nroBoleta,'Alumno':a.nombre,'Sala':a.sala,
