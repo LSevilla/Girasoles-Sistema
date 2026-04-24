@@ -1,0 +1,2280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0f1117;--surface:#181b24;--surface2:#1e2130;--surface3:#252840;
+  --accent:#4f6ef7;--accent2:#7c3aed;--accent-g:linear-gradient(135deg,#4f6ef7,#7c3aed);
+  --gold:#f59e0b;--green:#10b981;--red:#ef4444;--orange:#f97316;
+  --text:#e8eaf6;--text2:#9ca3c8;--text3:#5a5f80;
+  --border:#2a2f47;--border2:#1e2238;
+  --verde:#10b981;--roja:#ef4444;--azul:#3b82f6;--amarilla:#f59e0b;
+  --shadow:0 4px 24px rgba(0,0,0,.4);--shadow-lg:0 8px 40px rgba(0,0,0,.6);
+  --r:10px;--r-lg:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+button,select,input,textarea{font-family:'Inter',sans-serif;}
+a{color:var(--accent);text-decoration:none;}
+
+/* ── LOGIN ── */
+#login-screen{
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;
+  background:radial-gradient(ellipse at 30% 50%,rgba(79,110,247,.12) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 20%,rgba(124,58,237,.1) 0%,transparent 50%),var(--bg);
+}
+.login-card{
+  width:400px;max-width:94vw;background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:40px;box-shadow:var(--shadow-lg);
+  animation:fadeIn .4s ease;
+}
+.login-logo{text-align:center;margin-bottom:32px;}
+.login-logo .icon{font-size:2.5rem;display:block;margin-bottom:12px;}
+.login-logo h1{font-family:'Sora',sans-serif;font-size:1.6rem;font-weight:800;
+  background:var(--accent-g);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.login-logo p{font-size:.8rem;color:var(--text3);margin-top:4px;letter-spacing:.06em;text-transform:uppercase;}
+.login-form{display:flex;flex-direction:column;gap:14px;}
+.inp-group{display:flex;flex-direction:column;gap:5px;}
+.inp-group label{font-size:.72rem;font-weight:600;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;}
+.inp-group input,.inp-group select{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;color:var(--text);font-size:.9rem;outline:none;transition:.15s;
+}
+.inp-group input:focus,.inp-group select:focus{border-color:var(--accent);}
+.inp-group input::placeholder{color:var(--text3);}
+.login-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+  border-radius:8px;padding:8px 12px;font-size:.8rem;color:#fca5a5;display:none;}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 18px;border-radius:8px;border:none;font-size:.83rem;font-weight:600;
+  cursor:pointer;transition:.15s;white-space:nowrap;
+}
+.btn-primary{background:var(--accent-g);color:#fff;}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px);}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text2);}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent);}
+.btn-ghost{background:transparent;color:var(--text2);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);}
+.btn-danger{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;}
+.btn-danger:hover{background:rgba(239,68,68,.25);}
+.btn-green{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;}
+.btn-green:hover{background:rgba(16,185,129,.25);}
+.btn-gold{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d;}
+.btn-gold:hover{background:rgba(245,158,11,.25);}
+.btn-sm{padding:5px 10px;font-size:.75rem;}
+.btn-full{width:100%;justify-content:center;}
+.btn-lg{padding:12px 24px;font-size:.95rem;}
+
+/* ── APP LAYOUT ── */
+#app{display:none;min-height:100vh;}
+.layout{display:flex;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:230px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;
+  transition:width .2s;overflow:hidden;
+}
+.sb-header{padding:18px 16px;border-bottom:1px solid var(--border);}
+.sb-logo{display:flex;align-items:center;gap:10px;}
+.sb-logo .icon{width:34px;height:34px;border-radius:8px;
+  background:var(--accent-g);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.sb-logo-text h2{font-family:'Sora',sans-serif;font-size:.85rem;font-weight:700;color:var(--text);}
+.sb-logo-text p{font-size:.65rem;color:var(--text3);margin-top:1px;}
+.sb-user{padding:12px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:9px;}
+.sb-user .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-g);
+  display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0;}
+.sb-user-info{flex:1;min-width:0;}
+.sb-user-info .name{font-size:.77rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-user-info .role{font-size:.65rem;color:var(--text3);}
+.sb-role-badge{font-size:.6rem;padding:2px 6px;border-radius:4px;font-weight:600;}
+.sb-role-badge.admin{background:rgba(79,110,247,.2);color:#a5b4fc;}
+.sb-role-badge.editor{background:rgba(16,185,129,.2);color:#6ee7b7;}
+.sb-role-badge.viewer{background:rgba(156,163,175,.1);color:var(--text2);}
+.sb-nav{flex:1;overflow-y:auto;padding:8px 0;}
+.sb-section-label{font-size:.62rem;font-weight:700;color:var(--text3);letter-spacing:.1em;
+  text-transform:uppercase;padding:10px 16px 4px;}
+.sb-item{
+  display:flex;align-items:center;gap:10px;padding:8px 16px;
+  cursor:pointer;color:var(--text2);font-size:.82rem;border-left:2px solid transparent;
+  transition:.12s;
+}
+.sb-item:hover{background:var(--surface2);color:var(--text);}
+.sb-item.active{background:rgba(79,110,247,.1);color:var(--accent);border-left-color:var(--accent);font-weight:600;}
+.sb-item .si{width:18px;text-align:center;font-size:1rem;}
+.sb-footer{padding:12px 16px;border-top:1px solid var(--border);}
+
+/* ── MAIN ── */
+.main{margin-left:230px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 28px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.topbar-left h2{font-family:'Sora',sans-serif;font-size:1.1rem;font-weight:700;color:var(--text);}
+.breadcrumb{font-size:.75rem;color:var(--text3);}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.page-content{padding:24px 28px;flex:1;}
+
+/* ── CARDS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px;}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:16px 18px;position:relative;overflow:hidden;
+}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.stat-card.c-accent::after{background:var(--accent-g);}
+.stat-card.c-green::after{background:var(--green);}
+.stat-card.c-red::after{background:var(--red);}
+.stat-card.c-gold::after{background:var(--gold);}
+.stat-card.c-verde::after{background:var(--verde);}
+.stat-card.c-roja::after{background:var(--roja);}
+.stat-card.c-azul::after{background:var(--azul);}
+.stat-card.c-amarilla::after{background:var(--amarilla);}
+.stat-label{font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+.stat-num{font-family:'Sora',sans-serif;font-size:1.9rem;font-weight:800;color:var(--text);line-height:1;}
+.stat-sub{font-size:.72rem;color:var(--text3);margin-top:5px;}
+.stat-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:1.8rem;opacity:.12;}
+
+/* ── TABLE ── */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.table-header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.table-title{font-size:.9rem;font-weight:600;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead th{
+  background:var(--surface2);padding:10px 14px;text-align:left;
+  font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap;
+}
+tbody tr{border-bottom:1px solid var(--border2);transition:.1s;}
+tbody tr:hover{background:var(--surface2);}
+tbody td{padding:9px 14px;font-size:.82rem;color:var(--text);}
+tbody tr:last-child{border-bottom:none;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:.7rem;font-weight:700;}
+.badge-verde{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.badge-roja{background:rgba(239,68,68,.15);color:#fca5a5;}
+.badge-azul{background:rgba(59,130,246,.15);color:#93c5fd;}
+.badge-amarilla{background:rgba(245,158,11,.15);color:#fcd34d;}
+.badge-vigente{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.badge-retirado{background:rgba(239,68,68,.15);color:#fca5a5;}
+.badge-sin-sala{background:rgba(156,163,175,.1);color:var(--text2);}
+.badge-m{background:rgba(245,158,11,.15);color:#fcd34d;}
+.badge-bi{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.badge-mes{background:rgba(79,110,247,.15);color:#a5b4fc;}
+
+/* ── FILTERS ── */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center;}
+.filter-input{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:7px 12px;color:var(--text);font-size:.82rem;outline:none;transition:.15s;
+}
+.filter-input:focus{border-color:var(--accent);}
+.filter-input::placeholder{color:var(--text3);}
+.filter-input.search{width:220px;}
+.chip{
+  padding:5px 13px;border-radius:20px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text2);font-size:.75rem;font-weight:500;cursor:pointer;transition:.12s;
+}
+.chip:hover{border-color:var(--accent);}
+.chip.active{color:#fff;border-color:transparent;}
+.chip.all.active{background:var(--accent);}
+.chip.VERDE.active{background:var(--verde);}
+.chip.ROJA.active{background:var(--roja);}
+.chip.AZUL.active{background:var(--azul);}
+.chip.AMARILLA.active{background:var(--amarilla);}
+
+/* ── MODAL ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);
+  padding:20px;
+}
+.modal-overlay.open{display:flex;}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  width:680px;max-width:100%;max-height:90vh;overflow-y:auto;
+  box-shadow:var(--shadow-lg);animation:slideUp .22s ease;
+}
+.modal-sm{width:420px;}
+.modal-lg{width:820px;}
+@keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{
+  padding:20px 22px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:var(--surface);z-index:2;
+}
+.modal-header h3{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:1.2rem;padding:4px;}
+.modal-close:hover{color:var(--red);}
+.modal-body{padding:20px 22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface);}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full{grid-column:1/-1;}
+.form-group label{font-size:.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+.form-group input,.form-group select,.form-group textarea{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;color:var(--text);font-size:.85rem;outline:none;transition:.15s;
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);}
+.form-group input::placeholder{color:var(--text3);}
+.form-group select option{background:var(--surface);}
+.form-section{grid-column:1/-1;font-size:.7rem;font-weight:700;color:var(--accent);
+  text-transform:uppercase;letter-spacing:.1em;padding:6px 0 3px;
+  border-bottom:1px solid var(--border);margin-bottom:2px;}
+
+/* ── PAGOS ── */
+.pago-history{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+.pago-row{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.pago-row .pr-info{flex:1;min-width:160px;}
+.pago-row .pr-name{font-size:.83rem;font-weight:600;}
+.pago-row .pr-meta{font-size:.72rem;color:var(--text3);margin-top:2px;}
+.pago-row .pr-amount{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700;color:var(--green);}
+
+/* ── RESUMEN ── */
+.resumen-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px;}
+.resumen-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.resumen-card-header{padding:14px 18px;display:flex;align-items:center;gap:10px;}
+.resumen-card-header .sala-icon{width:36px;height:36px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+.resumen-card-header h3{font-size:.9rem;font-weight:700;}
+.resumen-card-header .count{margin-left:auto;font-family:'Sora',sans-serif;font-size:1.4rem;font-weight:800;}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:var(--r-lg);padding:40px;
+  text-align:center;cursor:pointer;transition:.2s;
+}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(79,110,247,.05);}
+.upload-zone .uz-icon{font-size:2.5rem;display:block;margin-bottom:10px;}
+.upload-zone h3{font-size:.95rem;font-weight:600;margin-bottom:6px;}
+.upload-zone p{font-size:.8rem;color:var(--text3);}
+
+/* ── CORREOS ── */
+.correo-group{margin-bottom:16px;}
+.correo-group h4{font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+.correo-list{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;}
+.correo-list p{font-size:.78rem;color:var(--text2);line-height:1.8;}
+.copy-btn-area{margin-top:8px;}
+
+/* ── USERS ── */
+.user-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);
+  padding:14px 16px;display:flex;align-items:center;gap:12px;
+}
+.user-card .avatar{width:38px;height:38px;border-radius:50%;background:var(--accent-g);
+  display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;}
+.user-card .ui{flex:1;min-width:0;}
+.user-card .ui .name{font-size:.85rem;font-weight:600;}
+.user-card .ui .email{font-size:.72rem;color:var(--text3);margin-top:2px;}
+.users-grid{display:flex;flex-direction:column;gap:8px;}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:9998;
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:11px 18px;border-radius:10px;font-size:.83rem;
+  display:flex;align-items:center;gap:9px;box-shadow:var(--shadow-lg);
+  opacity:0;transform:translateY(8px);transition:.3s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.success{border-color:rgba(16,185,129,.4);}
+.toast.error{border-color:rgba(239,68,68,.4);}
+.toast.info{border-color:rgba(79,110,247,.4);}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:16px;width:fit-content;}
+.tab{padding:6px 16px;border-radius:6px;font-size:.8rem;font-weight:500;color:var(--text3);cursor:pointer;transition:.12s;}
+.tab.active{background:var(--surface);color:var(--text);font-weight:600;}
+
+/* ── DETAIL VIEW ── */
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+.detail-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;}
+.detail-item .dl{font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;}
+.detail-item .dv{font-size:.85rem;font-weight:500;}
+
+/* ── HISTORY TIMELINE ── */
+.timeline{display:flex;flex-direction:column;gap:10px;padding:4px 0;}
+.tl-item{display:flex;gap:12px;align-items:flex-start;}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0;}
+.tl-content{flex:1;}
+.tl-content .tl-title{font-size:.82rem;font-weight:600;}
+.tl-content .tl-sub{font-size:.72rem;color:var(--text3);margin-top:2px;}
+
+/* ── PROGRESS ── */
+.prog-bar{background:var(--border);border-radius:4px;height:5px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;border-radius:4px;transition:width .4s ease;}
+
+/* ── PERIODO SELECTOR ── */
+.periodo-badge{
+  background:rgba(79,110,247,.15);border:1px solid rgba(79,110,247,.3);
+  color:#a5b4fc;padding:4px 12px;border-radius:6px;font-size:.75rem;font-weight:600;
+  cursor:pointer;
+}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3);}
+.empty-state .es-icon{font-size:2.5rem;display:block;margin-bottom:12px;opacity:.5;}
+.empty-state p{font-size:.9rem;}
+
+/* ── PAGINATION ── */
+.pagination{display:flex;gap:4px;margin-top:12px;justify-content:flex-end;align-items:center;}
+.pg{padding:4px 9px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text2);font-size:.75rem;cursor:pointer;}
+.pg.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.pg:hover:not(.active){border-color:var(--accent);}
+.pg-info{font-size:.75rem;color:var(--text3);margin-right:6px;}
+
+/* ── BACKUP STATUS ── */
+.backup-status{
+  display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--text3);
+}
+.backup-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.backup-dot.stale{background:var(--gold);}
+.backup-dot.error{background:var(--red);}
+
+/* ── DRIVE MODAL ── */
+.drive-connect{
+  background:rgba(79,110,247,.08);border:1px solid rgba(79,110,247,.2);
+  border-radius:var(--r-lg);padding:20px;text-align:center;
+}
+.drive-connect h4{font-size:.9rem;font-weight:600;margin-bottom:6px;}
+.drive-connect p{font-size:.8rem;color:var(--text3);margin-bottom:14px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{width:60px;}
+  .sb-logo-text,.sb-user-info,.sb-section-label,.sb-item span:not(.si),.sb-footer .btn span{display:none;}
+  .main{margin-left:60px;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .topbar{padding:10px 14px;}
+  .page-content{padding:14px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="icon">📋</span>
+      <h1>Sistema de Control</h1>
+      <p>Gestión Educacional · 2025</p>
+    </div>
+    <div class="login-form">
+      <div class="inp-group">
+        <label>Correo electrónico</label>
+        <input id="l-email" type="email" placeholder="correo@ejemplo.com" autocomplete="email">
+      </div>
+      <div class="inp-group">
+        <label>Contraseña</label>
+        <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div id="l-err" class="login-err">Correo o contraseña incorrectos.</div>
+      <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Ingresar →</button>
+      <p style="text-align:center;font-size:.72rem;color:var(--text3)">
+        ¿Olvidaste tu contraseña? <a href="#" onclick="resetPass()">Recuperar</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div id="app">
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-header">
+    <div class="sb-logo">
+      <div class="icon">📋</div>
+      <div class="sb-logo-text">
+        <h2>Sis. de Control</h2>
+        <p id="sb-periodo">Periodo 2025</p>
+      </div>
+    </div>
+  </div>
+  <div class="sb-user" id="sb-user"></div>
+  <nav class="sb-nav">
+    <div class="sb-section-label">Principal</div>
+    <div class="sb-item active" data-view="dashboard" onclick="nav('dashboard')">
+      <span class="si">🏠</span><span>Dashboard</span>
+    </div>
+    <div class="sb-item" data-view="alumnos" onclick="nav('alumnos')">
+      <span class="si">👥</span><span>Alumnos</span>
+    </div>
+    <div class="sb-item" data-view="ingreso" onclick="nav('ingreso')">
+      <span class="si">➕</span><span>Ingresar Alumno</span>
+    </div>
+    <div class="sb-section-label">Salas</div>
+    <div class="sb-item" data-view="sala-VERDE" onclick="nav('sala-VERDE')">
+      <span class="si">🟢</span><span>Sala Verde</span>
+    </div>
+    <div class="sb-item" data-view="sala-ROJA" onclick="nav('sala-ROJA')">
+      <span class="si">🔴</span><span>Sala Roja</span>
+    </div>
+    <div class="sb-item" data-view="sala-AZUL" onclick="nav('sala-AZUL')">
+      <span class="si">🔵</span><span>Sala Azul</span>
+    </div>
+    <div class="sb-item" data-view="sala-AMARILLA" onclick="nav('sala-AMARILLA')">
+      <span class="si">🟡</span><span>Sala Amarilla</span>
+    </div>
+    <div class="sb-section-label">Finanzas</div>
+    <div class="sb-item" data-view="pagos" onclick="nav('pagos')">
+      <span class="si">💰</span><span>Pagos</span>
+    </div>
+    <div class="sb-item" data-view="historial" onclick="nav('historial')">
+      <span class="si">📜</span><span>Historial Pagos</span>
+    </div>
+    <div class="sb-item" data-view="resumen" onclick="nav('resumen')">
+      <span class="si">📊</span><span>Resumen por Sala</span>
+    </div>
+    <div class="sb-section-label">Reportes</div>
+    <div class="sb-item" data-view="mineduc" onclick="nav('mineduc')">
+      <span class="si">📋</span><span>Lista MINEDUC</span>
+    </div>
+    <div class="sb-item" data-view="correos" onclick="nav('correos')">
+      <span class="si">✉️</span><span>Correos</span>
+    </div>
+    <div class="sb-item" data-view="importar" onclick="nav('importar')">
+      <span class="si">📥</span><span>Importar Excel</span>
+    </div>
+    <div class="sb-section-label" id="sb-admin-section">Admin</div>
+    <div class="sb-item" data-view="usuarios" onclick="nav('usuarios')" id="sb-usuarios">
+      <span class="si">🔐</span><span>Usuarios</span>
+    </div>
+    <div class="sb-item" data-view="backup" onclick="nav('backup')">
+      <span class="si">☁️</span><span>Backup / Drive</span>
+    </div>
+  </nav>
+  <div class="sb-footer">
+    <button class="btn btn-ghost btn-sm btn-full" onclick="doLogout()">
+      <span>🚪</span><span>Salir</span>
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h2 id="topbar-title">Dashboard</h2>
+      <span class="breadcrumb" id="topbar-breadcrumb"></span>
+    </div>
+    <div class="topbar-right">
+      <div class="backup-status" id="backup-status-bar">
+        <div class="backup-dot" id="backup-dot"></div>
+        <span id="backup-label">Backup OK</span>
+      </div>
+      <div class="periodo-badge" onclick="nav('backup')" id="periodo-selector">📅 2025</div>
+      <button class="btn btn-outline btn-sm" onclick="triggerBackup()">☁️ <span>Guardar</span></button>
+    </div>
+  </div>
+  <div class="page-content" id="page-content"></div>
+</div>
+</div>
+</div>
+
+<!-- ══════════ MODALS ══════════ -->
+<div class="modal-overlay" id="modal-alumno">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="ma-title">Nuevo Alumno</h3>
+      <button class="modal-close" onclick="closeModal('modal-alumno')">✕</button>
+    </div>
+    <div class="modal-body" id="ma-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-alumno')">Cancelar</button>
+      <button class="btn btn-primary" id="ma-save-btn" onclick="saveAlumno()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-pago">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="mp-title">Registrar Pago</h3>
+      <button class="modal-close" onclick="closeModal('modal-pago')">✕</button>
+    </div>
+    <div class="modal-body" id="mp-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-pago')">Cancelar</button>
+      <button class="btn btn-green" onclick="savePago()">💰 Registrar Pago</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3 id="mu-title">Nuevo Usuario</h3>
+      <button class="modal-close" onclick="closeModal('modal-usuario')">✕</button>
+    </div>
+    <div class="modal-body" id="mu-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveUsuario()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3 id="mc-title">Confirmar</h3>
+      <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="mc-msg" style="font-size:.87rem;color:var(--text2);line-height:1.6"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancelar</button>
+      <button class="btn btn-danger" id="mc-confirm-btn">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="md-title">Detalle Alumno</h3>
+      <button class="modal-close" onclick="closeModal('modal-detalle')">✕</button>
+    </div>
+    <div class="modal-body" id="md-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════ SCRIPT ══════════ -->
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════
+//  STORAGE HELPERS
+// ═══════════════════════════════════════════════════
+const DB = {
+  get(k,d=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){console.warn('Storage full',e);}},
+  remove(k){localStorage.removeItem(k);}
+};
+
+// ═══════════════════════════════════════════════════
+//  INITIAL DATA
+// ═══════════════════════════════════════════════════
+const SEED_USUARIOS = [
+  {id:1,email:'admin@jardin.cl',nombre:'Administrador',password:'Admin2025!',perfil:'admin',activo:true,creado:'2025-01-01'},
+  {id:2,email:'directora@jardin.cl',nombre:'Directora',password:'Dir2025!',perfil:'editor',activo:true,creado:'2025-01-01'},
+  {id:3,email:'secretaria@jardin.cl',nombre:'Secretaria',password:'Sec2025!',perfil:'viewer',activo:true,creado:'2025-01-01'},
+];
+
+const SEED_ALUMNOS = [
+  {id:1,rut:'27.608.032-6',nombre:'Lillo Villablanca Franco',genero:'MASCULINO',fechaNac:'2021-09-15',sala:'VERDE',jornada:'MAÑANA',mama:'Pamela',celMama:'965772203',papa:'Daniel',celPapa:'956063641',mailMama:'pavik27ster@gmail.com',mailPapa:'dclillocid@gmail.com',domicilio:'Los Corraleros 2731, casa 115 Lampa',situacion:'VIGENTE',motivoRetiro:'',observaciones:'XXXX',fechaMatricula:'2024-07-01',periodo:'2025',subNivel:'VERDE'},
+  {id:2,rut:'27.950.490-9',nombre:'Wormull Paccot Emma',genero:'FEMENINO',fechaNac:'2022-07-24',sala:'ROJA',jornada:'MAÑANA',mama:'Celine',celMama:'997575583',papa:'Stanley',celPapa:'998143010',mailMama:'celinepaccot@gmail.com',mailPapa:'stanley.wormull@gmail.com',domicilio:'Camino El Algarrobo s/n Cond El Laurel C7',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-07-01',periodo:'2025',subNivel:'ROJA'},
+  {id:3,rut:'27.515.330-3',nombre:'Martínez Abeleida Gaspar',genero:'MASCULINO',fechaNac:'2021-05-22',sala:'AZUL',jornada:'INTERMEDIA',mama:'Marianela',celMama:'988285578',papa:'Pablo',celPapa:'977683717',mailMama:'marianela.abeleida@gmail.com',mailPapa:'pmartinez.narvaez@gmail.com',domicilio:'Diagonal Santa Elena s/n parcela c5',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-07-03',periodo:'2025',subNivel:'AZUL'},
+  {id:4,rut:'27.693.765-0',nombre:'Albán Becar Máximo',genero:'MASCULINO',fechaNac:'2022-02-27',sala:'VERDE',jornada:'INTERMEDIA',mama:'Carolina',celMama:'938906847',papa:'Marco',celPapa:'992182637',mailMama:'caritobecar@yahoo.es',mailPapa:'marcoalban@gmail.com',domicilio:'Lo Arcaya Cond.las Campiñas, P90',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-07-03',periodo:'2025',subNivel:'VERDE'},
+  {id:5,rut:'27.469.655-9',nombre:'Arias Sanchez León',genero:'MASCULINO',fechaNac:'2021-03-06',sala:'',jornada:'',mama:'Camila',celMama:'995257051',papa:'Diego',celPapa:'990240620',mailMama:'camila.sanchez.b@gmail.com',mailPapa:'diagom27@gmail.com',domicilio:'Calle San Jose, Cond. Los Peumos P10H, Colina',situacion:'RETIRADO',motivoRetiro:'se fue al colegio en junio 2025',observaciones:'',fechaMatricula:'2024-08-03',periodo:'2025',subNivel:''},
+  {id:6,rut:'27.570.990-5',nombre:'Torres Rosas Benjamín',genero:'MASCULINO',fechaNac:'2021-07-20',sala:'',jornada:'',mama:'Daniela',celMama:'990021180',papa:'Carlos',celPapa:'985279260',mailMama:'dani.rosas.caceres@gmail.com',mailPapa:'voltabtl@gmail.com',domicilio:'Av. Rukan 214 casa36',situacion:'RETIRADO',motivoRetiro:'se va al colegio',observaciones:'',fechaMatricula:'2024-07-07',periodo:'2025',subNivel:''},
+  {id:7,rut:'27.781.074-3',nombre:'Navarro Urtubia Emilia',genero:'FEMENINO',fechaNac:'2022-05-20',sala:'VERDE',jornada:'INTERMEDIA',mama:'Pamela',celMama:'979025247',papa:'Sebastián',celPapa:'90923639',mailMama:'pamelaivone@gmail.com',mailPapa:'snayca87@gmail.com',domicilio:'Av. El Remanso de Chicureo 637',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-07-07',periodo:'2025',subNivel:'VERDE'},
+  {id:8,rut:'28.225.427-1',nombre:'Wagner Socias Micaela',genero:'FEMENINO',fechaNac:'2023-08-14',sala:'AMARILLA',jornada:'EXTENDIDA',mama:'Vanessa',celMama:'988040974',papa:'Juan Cristóbal',celPapa:'977573544',mailMama:'vane.socias@gmail.com',mailPapa:'juancriwagner@gmail.com',domicilio:'Rukan 315 casa 52',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-07-07',periodo:'2025',subNivel:'AMARILLA'},
+  {id:9,rut:'28.038.580-8',nombre:'Romo Sarquis Vicente',genero:'MASCULINO',fechaNac:'2022-11-28',sala:'AMARILLA',jornada:'INTERMEDIA',mama:'Trinidad',celMama:'977007709',papa:'Alvaro',celPapa:'987087085',mailMama:'trinidad.sarquis@gmail.com',mailPapa:'alvromo@gmail.com',domicilio:'Los Jacarandás 33, cond Chicureo III',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-07-08',periodo:'2025',subNivel:'AMARILLA'},
+  {id:10,rut:'27.557.017-6',nombre:'Atton Martínez Magdalena',genero:'FEMENINO',fechaNac:'2021-07-01',sala:'AZUL',jornada:'EXTENDIDA',mama:'Gabriela',celMama:'999923375',papa:'Alejandro',celPapa:'991330917',mailMama:'gabita.martinez@gmail.com',mailPapa:'aatton@godomarti.cl',domicilio:'San Anselmo 480 cas 76',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-07-08',periodo:'2025',subNivel:'AZUL'},
+  {id:11,rut:'27.511.217-8',nombre:'Hettich Vilches Emilia',genero:'FEMENINO',fechaNac:'2021-04-20',sala:'AZUL',jornada:'INTERMEDIA',mama:'María Paz',celMama:'992804566',papa:'Max',celPapa:'991959930',mailMama:'paz.vilchesh@gmail.com',mailPapa:'max.hettich@gmail.com',domicilio:'El Remanso 724 casa 98, cond la Minga',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-09-26',periodo:'2025',subNivel:'AZUL'},
+  {id:12,rut:'27.690654-2',nombre:'Oteiza Fuentealba María Jesús',genero:'FEMENINO',fechaNac:'2022-02-24',sala:'VERDE',jornada:'INTERMEDIA',mama:'Camila',celMama:'974136558',papa:'Danyelo',celPapa:'961251343',mailMama:'Franciscacamila.fr95@gmail.com',mailPapa:'Danyelo.oteiza@gmail.com',domicilio:'Los tilos 23, colina (Algarrobal II)',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-12',periodo:'2025',subNivel:'VERDE'},
+  {id:13,rut:'28.000.548-7',nombre:'Anrique Valera Tomás',genero:'MASCULINO',fechaNac:'2022-08-10',sala:'AMARILLA',jornada:'MAÑANA',mama:'Natalia',celMama:'975680425',papa:'Benjamín',celPapa:'954283697',mailMama:'nvarelacea@gmail.com',mailPapa:'b.anrique@gmail.com',domicilio:'El Algarrobo 555, casa 63',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-12',periodo:'2025',subNivel:'AMARILLA'},
+  {id:14,rut:'27.649.459-7',nombre:'Anrique Valera Mercedes',genero:'FEMENINO',fechaNac:'2021-11-30',sala:'VERDE',jornada:'MAÑANA',mama:'Natalia',celMama:'975680425',papa:'Benjamín',celPapa:'954283697',mailMama:'nvarelacea@gmail.com',mailPapa:'b.anrique@gmail.com',domicilio:'El Algarrobo 555, casa 63',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-12',periodo:'2025',subNivel:'VERDE'},
+  {id:15,rut:'28.117.304-9',nombre:'Fuchslocher Lobos Lía',genero:'FEMENINO',fechaNac:'2023-03-13',sala:'AMARILLA',jornada:'INTERMEDIA',mama:'Valentina',celMama:'988135445',papa:'Hans',celPapa:'997896599',mailMama:'vwlobosm@gmail.com',mailPapa:'hans.fuchslocher@gmail.com',domicilio:'Av. Jose Rabat 8380, casa 4',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-18',periodo:'2025',subNivel:'AMARILLA'},
+  {id:16,rut:'28.249.276-8',nombre:'Schkolnik Corral Sara',genero:'FEMENINO',fechaNac:'2023-09-17',sala:'AMARILLA',jornada:'MAÑANA',mama:'Mariana',celMama:'964079725',papa:'Demian',celPapa:'992388151',mailMama:'marianacorralh@gmail.com',mailPapa:'demianschkolnik@gmail.com',domicilio:'Los Peumos Dos P14',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-22',periodo:'2025',subNivel:'AMARILLA'},
+  {id:17,rut:'27.915.935-7',nombre:'Paredes Undurraga Clemente',genero:'MASCULINO',fechaNac:'2022-06-10',sala:'ROJA',jornada:'INTERMEDIA',mama:'Isidora',celMama:'9989997610',papa:'Juan Jose',celPapa:'998224610',mailMama:'i.undurragaj@gmail.com',mailPapa:'jjparedesn@gmail.com',domicilio:'Av. Rukan 214 casa 176',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-22',periodo:'2025',subNivel:'ROJA'},
+  {id:18,rut:'27.974.427-6',nombre:'Montes Corral Eduardo',genero:'MASCULINO',fechaNac:'2022-07-24',sala:'ROJA',jornada:'EXTENDIDA',mama:'Andrea',celMama:'961924052',papa:'Eduardo',celPapa:'982431658',mailMama:'andreacorralh@gmail.com',mailPapa:'emontes1@uc.cl',domicilio:'Las Hualtatas 9449 casa D, Chicuama',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-26',periodo:'2025',subNivel:'ROJA'},
+  {id:19,rut:'27.568.944-0',nombre:'Martínez De Marchi Florencia',genero:'FEMENINO',fechaNac:'2021-07-11',sala:'AZUL',jornada:'EXTENDIDA',mama:'Ladia',celMama:'950827250',papa:'Diego',celPapa:'972147420',mailMama:'ladia.nunez@gmail.com',mailPapa:'diego.mart.92@gmail.com',domicilio:'Av. Lo pinto Fundo San Jorge P119',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-26',periodo:'2025',subNivel:'AZUL'},
+  {id:20,rut:'28.275.545-9',nombre:'Ariztía Khaliliyeh Olivia',genero:'FEMENINO',fechaNac:'2023-10-23',sala:'AMARILLA',jornada:'EXTENDIDA',mama:'M.Ignacia',celMama:'983612976',papa:'Hernán',celPapa:'994365481',mailMama:'ignacia@thegarden.cl',mailPapa:'hariztia@gmail.com',domicilio:'El Algarrobo 105, casa 113',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-26',periodo:'2025',subNivel:'AMARILLA'},
+  {id:21,rut:'27.844.364-7',nombre:'Barrena Baeza Sara',genero:'FEMENINO',fechaNac:'2022-04-22',sala:'ROJA',jornada:'MAÑANA',mama:'Bárbara',celMama:'995797331',papa:'Jose Andres',celPapa:'982936726',mailMama:'barbarabaezab@gmail.com',mailPapa:'josebarrena89@gmail.com',domicilio:'Calle Sta Luisa 7, lote 1b, casa A',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-10-28',periodo:'2025',subNivel:'ROJA'},
+  {id:22,rut:'27.867.935-7',nombre:'Sieyes Vásquez Mila',genero:'FEMENINO',fechaNac:'2022-05-04',sala:'ROJA',jornada:'EXTENDIDA',mama:'Francisca',celMama:'979586128',papa:'Gonzalo',celPapa:'982615181',mailMama:'francisca.vasquez.gajardo@gmail.com',mailPapa:'gsieyes@gmail.com',domicilio:'Av. Rukan 214, casa 236',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-11-01',periodo:'2025',subNivel:'ROJA'},
+  {id:23,rut:'28.090.844-4',nombre:'Elías Müller Luciano',genero:'MASCULINO',fechaNac:'2023-01-09',sala:'AMARILLA',jornada:'INTERMEDIA',mama:'Angela',celMama:'965745762',papa:'Pedro',celPapa:'988099000',mailMama:'angelamullerc@gmail.com',mailPapa:'pedroelias1978@gmail.com',domicilio:'Camino el Algarrobo 105, lote 131',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-11-01',periodo:'2025',subNivel:'AMARILLA'},
+  {id:24,rut:'27.832.215-7',nombre:'Sánchez Romo Emma',genero:'FEMENINO',fechaNac:'2022-03-23',sala:'ROJA',jornada:'MAÑANA',mama:'Verónica',celMama:'982779427',papa:'Tomás',celPapa:'993326520',mailMama:'m.vero.romo@gmail.com',mailPapa:'t.sanchezgreene@gmail.com',domicilio:'Sierra Grande 10783, Chicureo',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-11-03',periodo:'2025',subNivel:'ROJA'},
+  {id:25,rut:'28.084.071-8',nombre:'Ortiz Molina Raimundo',genero:'MASCULINO',fechaNac:'2023-01-01',sala:'AMARILLA',jornada:'EXTENDIDA',mama:'Catherine',celMama:'984733255',papa:'Carlos',celPapa:'989604008',mailMama:'catherinemolina@gmail.com',mailPapa:'carlosortizferes@gmail.com',domicilio:'Av. Rukan 214, casa 222',situacion:'VIGENTE',motivoRetiro:'',observaciones:'',fechaMatricula:'2024-11-01',periodo:'2025',subNivel:'AMARILLA'},
+];
+
+const SEED_PAGOS = [
+  {id:1,alumnoId:1,rut:'27.608.032-6',nroBoleta:'',monto:750000,banco:'TRANSBANK',nroCheque:'',fecha:'2024-07-01',mensualidad:'1 BIMESTRE',comentario:'',periodo:'2025'},
+  {id:2,alumnoId:2,rut:'27.950.490-9',nroBoleta:'862',monto:750000,banco:'SANTANDER',nroCheque:'',fecha:'2024-07-01',mensualidad:'1 BIMESTRE',comentario:'',periodo:'2025'},
+  {id:3,alumnoId:3,rut:'27.515.330-3',nroBoleta:'',monto:420000,banco:'BCI',nroCheque:'transferencia',fecha:'2024-07-03',mensualidad:'MATRICULA',comentario:'',periodo:'2025'},
+  {id:4,alumnoId:4,rut:'27.693.765-0',nroBoleta:'833',monto:420000,banco:'Chile',nroCheque:'transferencia',fecha:'2024-07-03',mensualidad:'MATRICULA',comentario:'',periodo:'2025'},
+  {id:5,alumnoId:8,rut:'28.225.427-1',nroBoleta:'',monto:980000,banco:'TRANSBANK',nroCheque:'',fecha:'2024-07-07',mensualidad:'1 BIMESTRE',comentario:'',periodo:'2025'},
+  {id:6,alumnoId:10,rut:'27.557.017-6',nroBoleta:'',monto:980000,banco:'TRANSBANK',nroCheque:'',fecha:'2024-07-07',mensualidad:'1 BIMESTRE',comentario:'',periodo:'2025'},
+  {id:7,alumnoId:11,rut:'27.511.217-8',nroBoleta:'884',monto:820000,banco:'BCI',nroCheque:'transferencia',fecha:'2024-09-26',mensualidad:'1 BIMESTRE',comentario:'',periodo:'2025'},
+  {id:8,alumnoId:15,rut:'28.117.304-9',nroBoleta:'',monto:820000,banco:'TRANSBANK',nroCheque:'',fecha:'2024-10-18',mensualidad:'1 BIMESTRE',comentario:'',periodo:'2025'},
+  {id:9,alumnoId:17,rut:'27.915.935-7',nroBoleta:'915',monto:420000,banco:'SANTANDER',nroCheque:'transferencia',fecha:'2024-10-22',mensualidad:'MATRICULA',comentario:'',periodo:'2025'},
+  {id:10,alumnoId:18,rut:'27.974.427-6',nroBoleta:'',monto:450000,banco:'TRANSBANK',nroCheque:'',fecha:'2024-10-26',mensualidad:'MATRICULA',comentario:'',periodo:'2025'},
+  {id:11,alumnoId:21,rut:'27.844.364-7',nroBoleta:'920',monto:385000,banco:'SANTANDER',nroCheque:'transferencia',fecha:'2024-10-28',mensualidad:'MATRICULA',comentario:'sobran 15 mil',periodo:'2025'},
+  {id:12,alumnoId:22,rut:'27.867.935-7',nroBoleta:'921',monto:210000,banco:'FALABELLA',nroCheque:'transferencia',fecha:'2024-11-01',mensualidad:'MATRICULA',comentario:'paga la mitad',periodo:'2025'},
+];
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+let state = {
+  usuarios: DB.get('sc_usuarios', SEED_USUARIOS),
+  alumnos: DB.get('sc_alumnos', SEED_ALUMNOS),
+  pagos: DB.get('sc_pagos', SEED_PAGOS),
+  historico: DB.get('sc_historico', []),   // alumnos de periodos anteriores
+  backupMeta: DB.get('sc_backup_meta', {lastBackup:null,driveConnected:false,driveFile:''}),
+  currentUser: null,
+  currentView: 'dashboard',
+  currentPeriodo: DB.get('sc_periodo','2025'),
+  editingAlumnoId: null,
+  editingUsuarioId: null,
+  pagoAlumnoId: null,
+  deleteCallback: null,
+  filters: {sala:'',buscar:'',situacion:'',jornada:''},
+  page: 1,
+  PER_PAGE: 15,
+};
+let nextAlumnoId = Math.max(0,...state.alumnos.map(a=>a.id))+1;
+let nextPagoId = Math.max(0,...state.pagos.map(p=>p.id))+1;
+let nextUserId = Math.max(0,...state.usuarios.map(u=>u.id))+1;
+
+function saveState(){
+  DB.set('sc_alumnos', state.alumnos);
+  DB.set('sc_pagos', state.pagos);
+  DB.set('sc_usuarios', state.usuarios);
+  DB.set('sc_historico', state.historico);
+  DB.set('sc_periodo', state.currentPeriodo);
+}
+
+// ═══════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════
+function doLogin(){
+  const email = document.getElementById('l-email').value.trim().toLowerCase();
+  const pass = document.getElementById('l-pass').value;
+  const u = state.usuarios.find(x=>x.email.toLowerCase()===email && x.password===pass && x.activo);
+  if(!u){
+    document.getElementById('l-err').style.display='block';
+    return;
+  }
+  state.currentUser = u;
+  DB.set('sc_session',u.id);
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  initApp();
+}
+document.getElementById('l-pass').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('l-email').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
+function doLogout(){
+  state.currentUser=null;
+  DB.remove('sc_session');
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('l-email').value='';
+  document.getElementById('l-pass').value='';
+  document.getElementById('l-err').style.display='none';
+}
+function resetPass(){
+  const email = prompt('Ingresa tu correo para recuperar contraseña:');
+  if(!email)return;
+  const u = state.usuarios.find(x=>x.email.toLowerCase()===email.toLowerCase());
+  if(u){
+    showToast(`Contraseña: ${u.password}`,'info','ℹ️');
+  } else {
+    showToast('Correo no encontrado','error','❌');
+  }
+}
+function canEdit(){return state.currentUser && (state.currentUser.perfil==='admin'||state.currentUser.perfil==='editor');}
+function isAdmin(){return state.currentUser && state.currentUser.perfil==='admin';}
+
+// Auto-login from session
+(function(){
+  const sid = DB.get('sc_session');
+  if(sid){
+    const u = state.usuarios.find(x=>x.id===sid&&x.activo);
+    if(u){state.currentUser=u;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';initApp();}
+  }
+})();
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+function initApp(){
+  renderSbUser();
+  updateAdminVisibility();
+  updateBackupStatus();
+  nav(state.currentView);
+}
+function renderSbUser(){
+  const u = state.currentUser;
+  if(!u)return;
+  const initials = u.nombre.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  const roles = {admin:'Administrador',editor:'Editor',viewer:'Solo lectura'};
+  const roleClasses = {admin:'admin',editor:'editor',viewer:'viewer'};
+  document.getElementById('sb-user').innerHTML = `
+    <div class="avatar">${initials}</div>
+    <div class="sb-user-info">
+      <div class="name">${u.nombre}</div>
+      <div class="role"><span class="sb-role-badge ${roleClasses[u.perfil]}">${roles[u.perfil]||u.perfil}</span></div>
+    </div>
+  `;
+}
+function updateAdminVisibility(){
+  const adminSection = document.getElementById('sb-admin-section');
+  const sbUsuarios = document.getElementById('sb-usuarios');
+  if(!isAdmin()){adminSection.style.display='none';sbUsuarios.style.display='none';}
+  else{adminSection.style.display='';sbUsuarios.style.display='';}
+}
+
+// ═══════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════
+function nav(view){
+  state.currentView = view;
+  state.page = 1;
+  document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+  const el = document.querySelector(`[data-view="${view}"]`);
+  if(el) el.classList.add('active');
+  const titles = {
+    dashboard:'Dashboard',alumnos:'Listado de Alumnos',ingreso:'Ingresar Alumno',
+    pagos:'Registro de Pagos',historial:'Historial de Pagos',resumen:'Resumen por Sala',
+    mineduc:'Lista MINEDUC',correos:'Correos por Sala',importar:'Importar desde Excel',
+    usuarios:'Gestión de Usuarios',backup:'Backup & Drive',
+  };
+  let title = titles[view] || (view.startsWith('sala-') ? 'Sala '+view.split('-')[1] : view);
+  document.getElementById('topbar-title').textContent = title;
+  document.getElementById('periodo-selector').textContent = '📅 '+state.currentPeriodo;
+  const renders = {
+    dashboard:renderDashboard, alumnos:renderAlumnos, ingreso:()=>renderIngreso(),
+    pagos:renderPagos, historial:renderHistorial, resumen:renderResumen,
+    mineduc:renderMineduc, correos:renderCorreos, importar:renderImportar,
+    usuarios:renderUsuarios, backup:renderBackup,
+  };
+  if(view.startsWith('sala-')){
+    const sala = view.split('-')[1];
+    state.filters.sala = sala;
+    nav('alumnos');
+    return;
+  }
+  (renders[view]||renderDashboard)();
+}
+
+// ═══════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════
+function calcEdad(fechaNac){
+  if(!fechaNac)return '';
+  const hoy = new Date(), nac = new Date(fechaNac);
+  let a = hoy.getFullYear()-nac.getFullYear();
+  let m = hoy.getMonth()-nac.getMonth();
+  if(m<0){a--;m+=12;}
+  return `${a}a ${m}m`;
+}
+function salaProponente(fechaNac){
+  if(!fechaNac)return '';
+  const y = new Date(fechaNac).getFullYear();
+  if(y>=2024)return 'AZUL';
+  if(y===2023)return 'AMARILLA';
+  if(y===2022)return 'ROJA';
+  return 'VERDE';
+}
+function fmtMoney(n){return '$'+(Number(n)||0).toLocaleString('es-CL');}
+function fmtDate(d){if(!d)return '—';try{return new Date(d+'T12:00:00').toLocaleDateString('es-CL');}catch{return d;}}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function salaBadge(s){
+  if(!s)return '<span class="badge badge-sin-sala">Sin sala</span>';
+  const cl={VERDE:'verde',ROJA:'roja',AZUL:'azul',AMARILLA:'amarilla'}[s]||'sin-sala';
+  const ic={VERDE:'🟢',ROJA:'🔴',AZUL:'🔵',AMARILLA:'🟡'}[s]||'⚪';
+  return `<span class="badge badge-${cl}">${ic} ${s}</span>`;
+}
+function statusBadge(s){
+  const ok=s==='VIGENTE';
+  return `<span class="badge badge-${ok?'vigente':'retirado'}">${ok?'✅ Vigente':'❌ Retirado'}</span>`;
+}
+function mensBadge(m){
+  const cl=m==='MATRICULA'?'m':m.includes('BIMESTRE')?'bi':'mes';
+  return `<span class="badge badge-${cl}">${m}</span>`;
+}
+function showToast(msg,type='success',icon='✅'){
+  const t=document.getElementById('toast');
+  t.className=`toast ${type}`;
+  t.innerHTML=`<span>${icon}</span><span>${msg}</span>`;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click',e=>{if(e.target===el)closeModal(el.id);});
+});
+
+function setContent(html){document.getElementById('page-content').innerHTML=html;}
+
+// ═══════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════
+function renderDashboard(){
+  const vigentes = state.alumnos.filter(a=>a.situacion==='VIGENTE'&&a.periodo===state.currentPeriodo);
+  const retirados = state.alumnos.filter(a=>a.situacion==='RETIRADO'&&a.periodo===state.currentPeriodo);
+  const salas = ['VERDE','ROJA','AZUL','AMARILLA'];
+  const salaCounts = {};
+  salas.forEach(s=>salaCounts[s]=vigentes.filter(a=>a.sala===s).length);
+  const totalPagado = state.pagos.filter(p=>p.periodo===state.currentPeriodo).reduce((s,p)=>s+Number(p.monto),0);
+  const pagosHoy = state.pagos.filter(p=>p.fecha===new Date().toISOString().split('T')[0]&&p.periodo===state.currentPeriodo).length;
+  const recentPagos = [...state.pagos].filter(p=>p.periodo===state.currentPeriodo).reverse().slice(0,5);
+  const recentAlumnos = [...state.alumnos].filter(a=>a.periodo===state.currentPeriodo).reverse().slice(0,5);
+
+  setContent(`
+    <div class="stats-grid">
+      <div class="stat-card c-accent">
+        <div class="stat-label">Total Vigentes</div>
+        <div class="stat-num">${vigentes.length}</div>
+        <div class="stat-sub">${retirados.length} retirado${retirados.length!==1?'s':''}</div>
+        <div class="stat-icon">👥</div>
+      </div>
+      <div class="stat-card c-verde">
+        <div class="stat-label">🟢 Sala Verde</div>
+        <div class="stat-num">${salaCounts.VERDE}</div>
+        <div class="stat-sub">4+ años</div>
+      </div>
+      <div class="stat-card c-roja">
+        <div class="stat-label">🔴 Sala Roja</div>
+        <div class="stat-num">${salaCounts.ROJA}</div>
+        <div class="stat-sub">3 años</div>
+      </div>
+      <div class="stat-card c-azul">
+        <div class="stat-label">🔵 Sala Azul</div>
+        <div class="stat-num">${salaCounts.AZUL}</div>
+        <div class="stat-sub">2 años</div>
+      </div>
+      <div class="stat-card c-amarilla">
+        <div class="stat-label">🟡 Sala Amarilla</div>
+        <div class="stat-num">${salaCounts.AMARILLA}</div>
+        <div class="stat-sub">1-2 años</div>
+      </div>
+      <div class="stat-card c-green">
+        <div class="stat-label">Total Ingresado ${state.currentPeriodo}</div>
+        <div class="stat-num" style="font-size:1.3rem">${fmtMoney(totalPagado)}</div>
+        <div class="stat-sub">${state.pagos.filter(p=>p.periodo===state.currentPeriodo).length} pagos registrados</div>
+        <div class="stat-icon">💰</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px;">
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Últimos pagos registrados</span>
+          <button class="btn btn-outline btn-sm" onclick="nav('pagos')">Ver todos →</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Alumno</th><th>Concepto</th><th>Monto</th><th>Fecha</th></tr></thead>
+            <tbody>
+              ${recentPagos.length===0?'<tr><td colspan="4"><div class="empty-state"><span class="es-icon">💸</span><p>Sin pagos</p></div></td></tr>':
+              recentPagos.map(p=>{
+                const a=state.alumnos.find(x=>x.id===p.alumnoId)||{nombre:p.rut||'—'};
+                return `<tr>
+                  <td><strong>${esc(a.nombre)}</strong></td>
+                  <td>${mensBadge(p.mensualidad)}</td>
+                  <td style="color:var(--green);font-weight:600">${fmtMoney(p.monto)}</td>
+                  <td style="color:var(--text3)">${fmtDate(p.fecha)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><span class="table-title">Últimos alumnos ingresados</span>
+          <button class="btn btn-outline btn-sm" onclick="nav('alumnos')">Ver todos →</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Sala</th><th>Estado</th></tr></thead>
+            <tbody>
+              ${recentAlumnos.map(a=>`<tr>
+                <td><strong>${esc(a.nombre)}</strong></td>
+                <td>${salaBadge(a.sala)}</td>
+                <td>${statusBadge(a.situacion)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+// ═══════════════════════════════════════════════════
+//  ALUMNOS VIEW
+// ═══════════════════════════════════════════════════
+function renderAlumnos(){
+  let data = state.alumnos.filter(a=>a.periodo===state.currentPeriodo);
+  const f = state.filters;
+  if(f.sala) data = data.filter(a=>a.sala===f.sala);
+  if(f.situacion) data = data.filter(a=>a.situacion===f.situacion);
+  if(f.jornada) data = data.filter(a=>a.jornada===f.jornada);
+  if(f.buscar){
+    const q=f.buscar.toLowerCase();
+    data=data.filter(a=>
+      a.nombre.toLowerCase().includes(q)||(a.rut||'').includes(q)||
+      (a.mama||'').toLowerCase().includes(q)||(a.papa||'').toLowerCase().includes(q)||
+      (a.mailMama||'').toLowerCase().includes(q)
+    );
+  }
+  const total = data.length;
+  const totalPages = Math.ceil(total/state.PER_PAGE);
+  const paged = data.slice((state.page-1)*state.PER_PAGE, state.page*state.PER_PAGE);
+
+  setContent(`
+    <div class="filters">
+      <input class="filter-input search" placeholder="🔍 Buscar nombre, RUT, apoderado..." 
+        value="${esc(f.buscar)}" oninput="state.filters.buscar=this.value;state.page=1;renderAlumnos()">
+      <span class="chip all ${!f.sala?'active':''}" onclick="state.filters.sala='';state.page=1;renderAlumnos()">Todas</span>
+      ${['VERDE','ROJA','AZUL','AMARILLA'].map(s=>`
+        <span class="chip ${s} ${f.sala===s?'active':''}" onclick="state.filters.sala='${s}';state.page=1;renderAlumnos()">${s}</span>
+      `).join('')}
+      <select class="filter-input" onchange="state.filters.situacion=this.value;state.page=1;renderAlumnos()">
+        <option value="" ${!f.situacion?'selected':''}>Todos los estados</option>
+        <option value="VIGENTE" ${f.situacion==='VIGENTE'?'selected':''}>Vigentes</option>
+        <option value="RETIRADO" ${f.situacion==='RETIRADO'?'selected':''}>Retirados</option>
+      </select>
+      <select class="filter-input" onchange="state.filters.jornada=this.value;state.page=1;renderAlumnos()">
+        <option value="">Todas las jornadas</option>
+        <option value="MAÑANA">Mañana</option>
+        <option value="INTERMEDIA">Intermedia</option>
+        <option value="EXTENDIDA">Extendida</option>
+      </select>
+      ${canEdit()?`<button class="btn btn-primary btn-sm" onclick="openAlumnoModal(null)">➕ Nuevo</button>`:''}
+      <button class="btn btn-outline btn-sm" onclick="exportAlumnosExcel()">📥 Exportar</button>
+      <span style="margin-left:auto;font-size:.75rem;color:var(--text3)">${total} alumno${total!==1?'s':''}</span>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>N°</th><th>Nombre</th><th>RUT</th><th>Sala</th><th>Jornada</th>
+              <th>Edad</th><th>Mamá/Apoderada</th><th>Celular</th><th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${paged.length===0?`<tr><td colspan="10"><div class="empty-state"><span class="es-icon">👤</span><p>Sin alumnos</p></div></td></tr>`:
+            paged.map((a,i)=>`<tr>
+              <td style="color:var(--text3)">${(state.page-1)*state.PER_PAGE+i+1}</td>
+              <td>
+                <strong style="cursor:pointer;color:var(--accent)" onclick="openDetalle(${a.id})">${esc(a.nombre)}</strong>
+                <div style="font-size:.68rem;color:var(--text3)">${a.genero==='FEMENINO'?'👧':'👦'} ${a.genero}</div>
+              </td>
+              <td style="font-size:.75rem;font-family:monospace;color:var(--text2)">${esc(a.rut||'—')}</td>
+              <td>${salaBadge(a.sala)}</td>
+              <td><span style="font-size:.75rem;color:var(--text2)">${a.jornada||'—'}</span></td>
+              <td style="font-size:.75rem;color:var(--text3)">${calcEdad(a.fechaNac)}</td>
+              <td>
+                <div style="font-size:.8rem">${esc(a.mama||'—')}</div>
+                <div style="font-size:.68rem;color:var(--text3)">${esc(a.mailMama||'')}</div>
+              </td>
+              <td style="font-size:.77rem;color:var(--text2)">${esc(a.celMama||'—')}</td>
+              <td>${statusBadge(a.situacion)}</td>
+              <td>
+                <div style="display:flex;gap:4px;">
+                  <button class="btn btn-ghost btn-sm" onclick="openDetalle(${a.id})" title="Ver detalle">👁</button>
+                  ${canEdit()?`
+                    <button class="btn btn-ghost btn-sm" onclick="openAlumnoModal(${a.id})" title="Editar">✏️</button>
+                    <button class="btn btn-ghost btn-sm" onclick="openPagoModal(${a.id})" title="Registrar pago">💰</button>
+                    <button class="btn btn-danger btn-sm" onclick="askDelete('alumno',${a.id})">🗑</button>
+                  `:''}
+                </div>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    ${totalPages>1?`<div class="pagination">
+      <span class="pg-info">Pág. ${state.page} de ${totalPages}</span>
+      ${Array.from({length:totalPages},(_,i)=>`<button class="pg ${state.page===i+1?'active':''}" onclick="state.page=${i+1};renderAlumnos()">${i+1}</button>`).join('')}
+    </div>`:''}
+  `);
+}
+
+// ═══════════════════════════════════════════════════
+//  ALUMNO MODAL (NEW/EDIT)
+// ═══════════════════════════════════════════════════
+function openAlumnoModal(id){
+  if(!canEdit()){showToast('Sin permisos de edición','error','🔒');return;}
+  state.editingAlumnoId = id;
+  const a = id ? state.alumnos.find(x=>x.id===id) : {};
+  document.getElementById('ma-title').textContent = id ? `Editar: ${a.nombre}` : 'Nuevo Alumno';
+  document.getElementById('ma-save-btn').textContent = id ? '💾 Actualizar' : '💾 Guardar';
+  document.getElementById('ma-body').innerHTML = buildAlumnoForm(a);
+  // RUT lookup
+  const rutInput = document.getElementById('f-rut');
+  if(rutInput && !id){
+    rutInput.addEventListener('blur', function(){
+      const found = state.alumnos.find(x=>x.rut===this.value.trim());
+      if(found && found.periodo!==state.currentPeriodo){
+        if(confirm(`RUT encontrado en periodo ${found.periodo}: ${found.nombre}. ¿Cargar datos para el periodo ${state.currentPeriodo}?`)){
+          prefillFromAlumno(found);
+        }
+      }
+    });
+  }
+  // Auto-suggest sala
+  const fnInput = document.getElementById('f-fechaNac');
+  if(fnInput && !id){
+    fnInput.addEventListener('change',function(){
+      const sug=salaProponente(this.value);
+      const el=document.getElementById('f-sala');
+      if(el&&!el.value)el.value=sug;
+    });
+  }
+  openModal('modal-alumno');
+}
+function prefillFromAlumno(a){
+  const fields=['rut','nombre','genero','fechaNac','mama','celMama','mailMama','papa','celPapa','mailPapa','domicilio'];
+  fields.forEach(f=>{const el=document.getElementById('f-'+f);if(el)el.value=a[f]||'';});
+  showToast('Datos cargados del periodo anterior','info','📂');
+}
+function buildAlumnoForm(a){
+  return `<div class="form-grid">
+    <div class="form-section">📝 Datos del Niño</div>
+    <div class="form-group full">
+      <label>Nombre completo (Apellido paterno Apellido materno Nombre)</label>
+      <input id="f-nombre" value="${esc(a.nombre||'')}" placeholder="García López Emilio">
+    </div>
+    <div class="form-group">
+      <label>RUT / Pasaporte</label>
+      <input id="f-rut" value="${esc(a.rut||'')}" placeholder="12.345.678-9">
+    </div>
+    <div class="form-group">
+      <label>Fecha de Nacimiento</label>
+      <input id="f-fechaNac" type="date" value="${a.fechaNac||''}">
+    </div>
+    <div class="form-group">
+      <label>Género</label>
+      <select id="f-genero">
+        <option value="MASCULINO" ${(a.genero||'MASCULINO')==='MASCULINO'?'selected':''}>Masculino</option>
+        <option value="FEMENINO" ${a.genero==='FEMENINO'?'selected':''}>Femenino</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Sala propuesta <span style="color:var(--text3);font-size:.65rem">(auto al ingresar fecha)</span></label>
+      <select id="f-sala">
+        <option value="" ${!a.sala?'selected':''}>— Sin asignar —</option>
+        <option value="VERDE" ${a.sala==='VERDE'?'selected':''}>🟢 Verde (4+ años)</option>
+        <option value="ROJA" ${a.sala==='ROJA'?'selected':''}>🔴 Roja (3 años)</option>
+        <option value="AZUL" ${a.sala==='AZUL'?'selected':''}>🔵 Azul (2 años)</option>
+        <option value="AMARILLA" ${a.sala==='AMARILLA'?'selected':''}>🟡 Amarilla (1-2 años)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Jornada</label>
+      <select id="f-jornada">
+        <option value="" ${!a.jornada?'selected':''}>— Sin asignar —</option>
+        <option value="MAÑANA" ${a.jornada==='MAÑANA'?'selected':''}>Mañana</option>
+        <option value="INTERMEDIA" ${a.jornada==='INTERMEDIA'?'selected':''}>Intermedia</option>
+        <option value="EXTENDIDA" ${a.jornada==='EXTENDIDA'?'selected':''}>Extendida</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Situación</label>
+      <select id="f-situacion">
+        <option value="VIGENTE" ${(a.situacion||'VIGENTE')==='VIGENTE'?'selected':''}>✅ Vigente</option>
+        <option value="RETIRADO" ${a.situacion==='RETIRADO'?'selected':''}>❌ Retirado</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Fecha de Matrícula</label>
+      <input id="f-fechaMatricula" type="date" value="${a.fechaMatricula||''}">
+    </div>
+    <div class="form-group full">
+      <label>Motivo de Retiro</label>
+      <input id="f-motivoRetiro" value="${esc(a.motivoRetiro||'')}" placeholder="Dejar en blanco si está vigente">
+    </div>
+    <div class="form-group full">
+      <label>Domicilio</label>
+      <input id="f-domicilio" value="${esc(a.domicilio||'')}" placeholder="Dirección completa">
+    </div>
+    <div class="form-section">👩 Datos de la Mamá / Apoderada</div>
+    <div class="form-group">
+      <label>Nombre</label>
+      <input id="f-mama" value="${esc(a.mama||'')}">
+    </div>
+    <div class="form-group">
+      <label>Celular</label>
+      <input id="f-celMama" value="${esc(a.celMama||'')}" placeholder="9XXXXXXXX">
+    </div>
+    <div class="form-group full">
+      <label>Correo electrónico</label>
+      <input id="f-mailMama" type="email" value="${esc(a.mailMama||'')}">
+    </div>
+    <div class="form-section">👨 Datos del Papá / Apoderado</div>
+    <div class="form-group">
+      <label>Nombre</label>
+      <input id="f-papa" value="${esc(a.papa||'')}">
+    </div>
+    <div class="form-group">
+      <label>Celular</label>
+      <input id="f-celPapa" value="${esc(a.celPapa||'')}" placeholder="9XXXXXXXX">
+    </div>
+    <div class="form-group full">
+      <label>Correo electrónico</label>
+      <input id="f-mailPapa" type="email" value="${esc(a.mailPapa||'')}">
+    </div>
+    <div class="form-section">📝 Notas</div>
+    <div class="form-group full">
+      <label>Observaciones</label>
+      <input id="f-observaciones" value="${esc(a.observaciones||'')}">
+    </div>
+  </div>`;
+}
+function saveAlumno(){
+  const nombre = document.getElementById('f-nombre').value.trim();
+  if(!nombre){showToast('El nombre es obligatorio','error','⚠️');return;}
+  const data = {
+    nombre, rut:document.getElementById('f-rut').value.trim(),
+    fechaNac:document.getElementById('f-fechaNac').value,
+    genero:document.getElementById('f-genero').value,
+    sala:document.getElementById('f-sala').value,
+    jornada:document.getElementById('f-jornada').value,
+    situacion:document.getElementById('f-situacion').value,
+    fechaMatricula:document.getElementById('f-fechaMatricula').value,
+    motivoRetiro:document.getElementById('f-motivoRetiro').value,
+    domicilio:document.getElementById('f-domicilio').value,
+    mama:document.getElementById('f-mama').value,
+    celMama:document.getElementById('f-celMama').value,
+    mailMama:document.getElementById('f-mailMama').value,
+    papa:document.getElementById('f-papa').value,
+    celPapa:document.getElementById('f-celPapa').value,
+    mailPapa:document.getElementById('f-mailPapa').value,
+    observaciones:document.getElementById('f-observaciones').value,
+    periodo:state.currentPeriodo,
+    subNivel:document.getElementById('f-sala').value,
+  };
+  if(state.editingAlumnoId){
+    const idx=state.alumnos.findIndex(a=>a.id===state.editingAlumnoId);
+    state.alumnos[idx]={...state.alumnos[idx],...data};
+    showToast('Alumno actualizado ✅');
+  } else {
+    data.id=nextAlumnoId++;
+    state.alumnos.push(data);
+    showToast('Alumno registrado ✅');
+  }
+  saveState(); closeModal('modal-alumno'); renderAlumnos();
+  scheduleAutoBackup();
+}
+
+// ═══════════════════════════════════════════════════
+//  INGRESO (dedicated page)
+// ═══════════════════════════════════════════════════
+function renderIngreso(){
+  setContent(`
+    <div style="max-width:760px">
+      <div class="table-card" style="padding:0">
+        <div class="table-header">
+          <span class="table-title">Ingresar / Actualizar Alumno</span>
+        </div>
+        <div style="padding:20px">
+          <div style="margin-bottom:16px;display:flex;gap:10px;align-items:flex-end">
+            <div class="form-group" style="flex:1">
+              <label>Buscar por RUT para cargar datos existentes</label>
+              <input id="rut-buscar" class="filter-input" style="width:100%" placeholder="12.345.678-9" oninput="buscarPorRut(this.value)">
+            </div>
+            <button class="btn btn-outline" onclick="buscarPorRut(document.getElementById('rut-buscar').value)">🔍 Buscar</button>
+          </div>
+          <div id="rut-resultado" style="margin-bottom:14px"></div>
+          <div id="ingreso-form-container">
+            ${buildAlumnoFormStandalone({})}
+          </div>
+          ${canEdit()?`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+            <button class="btn btn-ghost" onclick="clearIngresoForm()">Limpiar</button>
+            <button class="btn btn-primary btn-lg" onclick="saveIngresoAlumno()">💾 Guardar Alumno</button>
+          </div>`:'<p style="color:var(--red);font-size:.8rem">Solo lectura: sin permisos de edición</p>'}
+        </div>
+      </div>
+    </div>
+  `);
+}
+function buscarPorRut(rut){
+  const r=rut.trim();
+  if(!r){document.getElementById('rut-resultado').innerHTML='';return;}
+  const found = state.alumnos.find(x=>x.rut===r);
+  const res = document.getElementById('rut-resultado');
+  if(found){
+    res.innerHTML=`<div style="background:rgba(79,110,247,.1);border:1px solid rgba(79,110,247,.3);border-radius:8px;padding:10px 14px;font-size:.82rem">
+      ✅ Alumno encontrado: <strong>${esc(found.nombre)}</strong> — Periodo ${found.periodo} — ${found.situacion}
+      <button class="btn btn-primary btn-sm" style="margin-left:10px" onclick="cargarAlumnoPorRut('${r}')">Cargar datos</button>
+    </div>`;
+  } else {
+    res.innerHTML=`<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 12px;font-size:.8rem;color:var(--text3)">
+      ℹ️ RUT no encontrado — se creará un nuevo alumno
+    </div>`;
+  }
+}
+function cargarAlumnoPorRut(rut){
+  const a = state.alumnos.find(x=>x.rut===rut);
+  if(!a)return;
+  state._ingresoBase = a;
+  document.getElementById('ingreso-form-container').innerHTML = buildAlumnoFormStandalone(a);
+  showToast('Datos cargados. Actualice lo necesario','info','📂');
+}
+function buildAlumnoFormStandalone(a){
+  return `<div class="form-grid" id="ingreso-form">
+    <div class="form-section">📝 Datos del Niño</div>
+    <div class="form-group full">
+      <label>Nombre completo</label>
+      <input id="if-nombre" value="${esc(a.nombre||'')}" placeholder="Apellido paterno Apellido materno Nombre" ${!canEdit()?'disabled':''}>
+    </div>
+    <div class="form-group">
+      <label>RUT / Pasaporte</label>
+      <input id="if-rut" value="${esc(a.rut||'')}" placeholder="12.345.678-9" ${!canEdit()?'disabled':''}>
+    </div>
+    <div class="form-group">
+      <label>Fecha de Nacimiento</label>
+      <input id="if-fechaNac" type="date" value="${a.fechaNac||''}" ${!canEdit()?'disabled':''} onchange="document.getElementById('if-sala').value=salaProponente(this.value)||document.getElementById('if-sala').value">
+    </div>
+    <div class="form-group">
+      <label>Género</label>
+      <select id="if-genero" ${!canEdit()?'disabled':''}>
+        <option value="MASCULINO" ${(a.genero||'MASCULINO')==='MASCULINO'?'selected':''}>Masculino</option>
+        <option value="FEMENINO" ${a.genero==='FEMENINO'?'selected':''}>Femenino</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Sala</label>
+      <select id="if-sala" ${!canEdit()?'disabled':''}>
+        <option value="">— Sin asignar —</option>
+        <option value="VERDE" ${a.sala==='VERDE'?'selected':''}>🟢 Verde</option>
+        <option value="ROJA" ${a.sala==='ROJA'?'selected':''}>🔴 Roja</option>
+        <option value="AZUL" ${a.sala==='AZUL'?'selected':''}>🔵 Azul</option>
+        <option value="AMARILLA" ${a.sala==='AMARILLA'?'selected':''}>🟡 Amarilla</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Jornada</label>
+      <select id="if-jornada" ${!canEdit()?'disabled':''}>
+        <option value="">— Sin asignar —</option>
+        <option value="MAÑANA" ${a.jornada==='MAÑANA'?'selected':''}>Mañana</option>
+        <option value="INTERMEDIA" ${a.jornada==='INTERMEDIA'?'selected':''}>Intermedia</option>
+        <option value="EXTENDIDA" ${a.jornada==='EXTENDIDA'?'selected':''}>Extendida</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Situación</label>
+      <select id="if-situacion" ${!canEdit()?'disabled':''}>
+        <option value="VIGENTE" ${(a.situacion||'VIGENTE')==='VIGENTE'?'selected':''}>✅ Vigente</option>
+        <option value="RETIRADO" ${a.situacion==='RETIRADO'?'selected':''}>❌ Retirado</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Fecha Matrícula</label>
+      <input id="if-fechaMatricula" type="date" value="${a.fechaMatricula||''}" ${!canEdit()?'disabled':''}>
+    </div>
+    <div class="form-group full">
+      <label>Motivo de retiro</label>
+      <input id="if-motivoRetiro" value="${esc(a.motivoRetiro||'')}" ${!canEdit()?'disabled':''}>
+    </div>
+    <div class="form-group full">
+      <label>Domicilio</label>
+      <input id="if-domicilio" value="${esc(a.domicilio||'')}" placeholder="Dirección completa" ${!canEdit()?'disabled':''}>
+    </div>
+    <div class="form-section">👩 Mamá / Apoderada</div>
+    <div class="form-group"><label>Nombre</label><input id="if-mama" value="${esc(a.mama||'')}" ${!canEdit()?'disabled':''}></div>
+    <div class="form-group"><label>Celular</label><input id="if-celMama" value="${esc(a.celMama||'')}" ${!canEdit()?'disabled':''}></div>
+    <div class="form-group full"><label>Email</label><input id="if-mailMama" type="email" value="${esc(a.mailMama||'')}" ${!canEdit()?'disabled':''}></div>
+    <div class="form-section">👨 Papá / Apoderado</div>
+    <div class="form-group"><label>Nombre</label><input id="if-papa" value="${esc(a.papa||'')}" ${!canEdit()?'disabled':''}></div>
+    <div class="form-group"><label>Celular</label><input id="if-celPapa" value="${esc(a.celPapa||'')}" ${!canEdit()?'disabled':''}></div>
+    <div class="form-group full"><label>Email</label><input id="if-mailPapa" type="email" value="${esc(a.mailPapa||'')}" ${!canEdit()?'disabled':''}></div>
+    <div class="form-section">📝 Notas</div>
+    <div class="form-group full"><label>Observaciones</label><input id="if-observaciones" value="${esc(a.observaciones||'')}" ${!canEdit()?'disabled':''}></div>
+  </div>`;
+}
+function clearIngresoForm(){
+  state._ingresoBase=null;
+  document.getElementById('rut-buscar').value='';
+  document.getElementById('rut-resultado').innerHTML='';
+  document.getElementById('ingreso-form-container').innerHTML=buildAlumnoFormStandalone({});
+}
+function saveIngresoAlumno(){
+  if(!canEdit())return;
+  const nombre=(document.getElementById('if-nombre').value||'').trim();
+  if(!nombre){showToast('El nombre es obligatorio','error','⚠️');return;}
+  const rut=(document.getElementById('if-rut').value||'').trim();
+  const data={
+    nombre, rut,
+    fechaNac:document.getElementById('if-fechaNac').value,
+    genero:document.getElementById('if-genero').value,
+    sala:document.getElementById('if-sala').value,
+    jornada:document.getElementById('if-jornada').value,
+    situacion:document.getElementById('if-situacion').value,
+    fechaMatricula:document.getElementById('if-fechaMatricula').value,
+    motivoRetiro:document.getElementById('if-motivoRetiro').value,
+    domicilio:document.getElementById('if-domicilio').value,
+    mama:document.getElementById('if-mama').value,
+    celMama:document.getElementById('if-celMama').value,
+    mailMama:document.getElementById('if-mailMama').value,
+    papa:document.getElementById('if-papa').value,
+    celPapa:document.getElementById('if-celPapa').value,
+    mailPapa:document.getElementById('if-mailPapa').value,
+    observaciones:document.getElementById('if-observaciones').value,
+    periodo:state.currentPeriodo, subNivel:document.getElementById('if-sala').value,
+  };
+  // Check if updating existing record in current period
+  const existingIdx = state.alumnos.findIndex(a=>a.rut===rut&&a.periodo===state.currentPeriodo);
+  if(existingIdx>=0){
+    data.id = state.alumnos[existingIdx].id;
+    state.alumnos[existingIdx]={...state.alumnos[existingIdx],...data};
+    showToast('Alumno actualizado en el periodo actual ✅');
+  } else {
+    data.id=nextAlumnoId++;
+    state.alumnos.push(data);
+    showToast('Alumno ingresado correctamente ✅');
+  }
+  saveState(); clearIngresoForm(); scheduleAutoBackup();
+}
+
+// ═══════════════════════════════════════════════════
+//  DETALLE ALUMNO
+// ═══════════════════════════════════════════════════
+function openDetalle(id){
+  const a = state.alumnos.find(x=>x.id===id);
+  if(!a)return;
+  const pagosList = state.pagos.filter(p=>p.alumnoId===id);
+  const totalPagado = pagosList.reduce((s,p)=>s+Number(p.monto),0);
+  const allPeriods = state.alumnos.filter(x=>x.rut===a.rut).map(x=>x.periodo);
+  document.getElementById('md-title').textContent = a.nombre;
+  document.getElementById('md-body').innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      ${salaBadge(a.sala)} ${statusBadge(a.situacion)}
+      <span class="badge badge-mes">📅 ${a.periodo}</span>
+      ${allPeriods.length>1?`<span class="badge" style="background:rgba(124,58,237,.15);color:#c4b5fd">
+        Historial: ${allPeriods.join(', ')}</span>`:''}
+    </div>
+    <div class="detail-grid" style="margin-bottom:20px">
+      <div class="detail-item"><div class="dl">RUT</div><div class="dv">${esc(a.rut||'—')}</div></div>
+      <div class="detail-item"><div class="dl">Fecha Nac.</div><div class="dv">${fmtDate(a.fechaNac)}</div></div>
+      <div class="detail-item"><div class="dl">Edad</div><div class="dv">${calcEdad(a.fechaNac)}</div></div>
+      <div class="detail-item"><div class="dl">Género</div><div class="dv">${a.genero}</div></div>
+      <div class="detail-item"><div class="dl">Jornada</div><div class="dv">${a.jornada||'—'}</div></div>
+      <div class="detail-item"><div class="dl">Matrícula</div><div class="dv">${fmtDate(a.fechaMatricula)}</div></div>
+      <div class="detail-item full" style="grid-column:1/-1"><div class="dl">Domicilio</div><div class="dv">${esc(a.domicilio||'—')}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="font-size:.7rem;font-weight:700;color:var(--text3);margin-bottom:8px">👩 MAMÁ / APODERADA</div>
+        <div><strong>${esc(a.mama||'—')}</strong></div>
+        <div style="font-size:.78rem;color:var(--text3)">${esc(a.celMama||'')}</div>
+        <div style="font-size:.75rem;color:var(--accent)">${esc(a.mailMama||'')}</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="font-size:.7rem;font-weight:700;color:var(--text3);margin-bottom:8px">👨 PAPÁ / APODERADO</div>
+        <div><strong>${esc(a.papa||'—')}</strong></div>
+        <div style="font-size:.78rem;color:var(--text3)">${esc(a.celPapa||'')}</div>
+        <div style="font-size:.75rem;color:var(--accent)">${esc(a.mailPapa||'')}</div>
+      </div>
+    </div>
+    ${a.motivoRetiro?`<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:16px">
+      ❌ <strong>Motivo de retiro:</strong> ${esc(a.motivoRetiro)}</div>`:''}
+    ${a.observaciones?`<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:16px">
+      📝 ${esc(a.observaciones)}</div>`:''}
+    <div style="border-top:1px solid var(--border);padding-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:.8rem;font-weight:700">💰 Historial de Pagos (${pagosList.length} registros — Total: <span style="color:var(--green)">${fmtMoney(totalPagado)}</span>)</div>
+        ${canEdit()?`<button class="btn btn-green btn-sm" onclick="closeModal('modal-detalle');openPagoModal(${a.id})">+ Registrar Pago</button>`:''}
+      </div>
+      ${pagosList.length===0?'<p style="font-size:.8rem;color:var(--text3)">Sin pagos registrados</p>':
+      `<div class="pago-history">
+        ${pagosList.reverse().map(p=>`<div class="pago-row">
+          <div class="pr-info">
+            <div class="pr-name">${mensBadge(p.mensualidad)}</div>
+            <div class="pr-meta">${p.banco} ${p.nroCheque?'· '+p.nroCheque:''} ${p.nroBoleta?'· Boleta N°'+p.nroBoleta:''}</div>
+            ${p.comentario?`<div class="pr-meta" style="color:var(--gold)">${esc(p.comentario)}</div>`:''}
+          </div>
+          <div style="text-align:right">
+            <div class="pr-amount">${fmtMoney(p.monto)}</div>
+            <div class="pr-meta">${fmtDate(p.fecha)}</div>
+          </div>
+        </div>`).join('')}
+      </div>`}
+    </div>
+    ${canEdit()?`<div style="margin-top:14px;display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalle');openAlumnoModal(${a.id})">✏️ Editar alumno</button>
+    </div>`:''}
+  `;
+  openModal('modal-detalle');
+}
+
+// ═══════════════════════════════════════════════════
+//  DELETE
+// ═══════════════════════════════════════════════════
+function askDelete(type, id){
+  if(!canEdit()){showToast('Sin permisos','error','🔒');return;}
+  let msg='';
+  if(type==='alumno'){
+    const a=state.alumnos.find(x=>x.id===id);
+    msg=`¿Eliminar a "${a?.nombre}"? También se eliminarán sus pagos del periodo actual. Esta acción no puede deshacerse.`;
+  } else if(type==='pago'){
+    msg='¿Eliminar este pago? Esta acción no puede deshacerse.';
+  } else if(type==='usuario'){
+    const u=state.usuarios.find(x=>x.id===id);
+    msg=`¿Eliminar al usuario "${u?.nombre}" (${u?.email})?`;
+  }
+  document.getElementById('mc-msg').textContent=msg;
+  state.deleteCallback=()=>{
+    if(type==='alumno'){
+      state.alumnos=state.alumnos.filter(a=>a.id!==id);
+      state.pagos=state.pagos.filter(p=>p.alumnoId!==id);
+      saveState(); closeModal('modal-confirm'); showToast('Alumno eliminado','success','🗑️'); renderAlumnos();
+    } else if(type==='pago'){
+      state.pagos=state.pagos.filter(p=>p.id!==id);
+      saveState(); closeModal('modal-confirm'); showToast('Pago eliminado','success','🗑️'); renderPagos();
+    } else if(type==='usuario'){
+      if(id===state.currentUser.id){showToast('No puedes eliminarte a ti mismo','error','⚠️');closeModal('modal-confirm');return;}
+      state.usuarios=state.usuarios.filter(u=>u.id!==id);
+      saveState(); closeModal('modal-confirm'); showToast('Usuario eliminado','success','🗑️'); renderUsuarios();
+    }
+  };
+  document.getElementById('mc-confirm-btn').onclick=state.deleteCallback;
+  openModal('modal-confirm');
+}
+
+// ═══════════════════════════════════════════════════
+//  PAGOS
+// ═══════════════════════════════════════════════════
+function openPagoModal(alumnoId){
+  if(!canEdit()){showToast('Sin permisos','error','🔒');return;}
+  state.pagoAlumnoId=alumnoId;
+  const a=state.alumnos.find(x=>x.id===alumnoId)||{nombre:'—'};
+  document.getElementById('mp-title').textContent=`Pago: ${a.nombre}`;
+  const meses=['MATRICULA','1 BIMESTRE','2 BIMESTRE','3 BIMESTRE','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const bancos=['TRANSBANK','Chile','BCI','SANTANDER','Scotiabank','Itau','BICE','Falabella','Mercadopago','Otro'];
+  document.getElementById('mp-body').innerHTML=`<div class="form-grid">
+    <div class="form-group">
+      <label>N° Boleta</label>
+      <input id="pf-boleta" placeholder="N° boleta (si aplica)">
+    </div>
+    <div class="form-group">
+      <label>Concepto / Mensualidad</label>
+      <select id="pf-mensualidad">${meses.map(m=>`<option value="${m}">${m}</option>`).join('')}</select>
+    </div>
+    <div class="form-group">
+      <label>Monto ($)</label>
+      <input id="pf-monto" type="number" placeholder="420000">
+    </div>
+    <div class="form-group">
+      <label>Banco / Forma de pago</label>
+      <select id="pf-banco">${bancos.map(b=>`<option value="${b}">${b}</option>`).join('')}</select>
+    </div>
+    <div class="form-group">
+      <label>N° Cheque / Ref. Transferencia</label>
+      <input id="pf-cheque" placeholder="transferencia / N° cheque">
+    </div>
+    <div class="form-group">
+      <label>Fecha de pago</label>
+      <input id="pf-fecha" type="date" value="${new Date().toISOString().split('T')[0]}">
+    </div>
+    <div class="form-group full">
+      <label>Comentario</label>
+      <input id="pf-comentario" placeholder="Observaciones del pago">
+    </div>
+  </div>`;
+  openModal('modal-pago');
+}
+function savePago(){
+  const alumnoId=state.pagoAlumnoId;
+  const monto=parseFloat(document.getElementById('pf-monto').value);
+  if(!monto||monto<=0){showToast('Ingresa un monto válido','error','⚠️');return;}
+  const a=state.alumnos.find(x=>x.id===alumnoId);
+  const pago={
+    id:nextPagoId++, alumnoId,
+    rut:a?.rut||'',
+    nroBoleta:document.getElementById('pf-boleta').value,
+    monto, banco:document.getElementById('pf-banco').value,
+    nroCheque:document.getElementById('pf-cheque').value,
+    fecha:document.getElementById('pf-fecha').value,
+    mensualidad:document.getElementById('pf-mensualidad').value,
+    comentario:document.getElementById('pf-comentario').value,
+    periodo:state.currentPeriodo,
+    registradoPor:state.currentUser?.nombre||'',
+  };
+  state.pagos.push(pago);
+  saveState(); closeModal('modal-pago'); showToast('Pago registrado ✅','success','💰');
+  scheduleAutoBackup();
+  if(state.currentView==='pagos')renderPagos();
+}
+function renderPagos(){
+  const periodoData=state.pagos.filter(p=>p.periodo===state.currentPeriodo);
+  const total=periodoData.reduce((s,p)=>s+Number(p.monto),0);
+  const data=[...periodoData].reverse();
+  setContent(`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <div class="stat-card c-green" style="padding:12px 16px;display:inline-block">
+          <div class="stat-label">Total Periodo ${state.currentPeriodo}</div>
+          <div class="stat-num" style="font-size:1.4rem">${fmtMoney(total)}</div>
+        </div>
+        <div class="stat-card c-accent" style="padding:12px 16px;display:inline-block">
+          <div class="stat-label">N° de Pagos</div>
+          <div class="stat-num" style="font-size:1.4rem">${periodoData.length}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${canEdit()?`<button class="btn btn-primary btn-sm" onclick="openPagoModalSelect()">💰 Registrar Pago</button>`:''}
+        <button class="btn btn-outline btn-sm" onclick="exportPagosExcel()">📥 Exportar</button>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Boleta</th><th>Alumno</th><th>Sala</th><th>Concepto</th>
+            <th>Fecha</th><th>Banco</th><th>Ref.</th><th>Monto</th><th>Comentario</th>
+            ${canEdit()?'<th>Acc.</th>':''}
+          </tr></thead>
+          <tbody>
+            ${data.length===0?`<tr><td colspan="10"><div class="empty-state"><span class="es-icon">💸</span><p>Sin pagos en este periodo</p></div></td></tr>`:
+            data.map(p=>{
+              const a=state.alumnos.find(x=>x.id===p.alumnoId)||{nombre:p.rut||'—',sala:''};
+              return `<tr>
+                <td style="font-family:monospace;font-size:.73rem">${p.nroBoleta||'—'}</td>
+                <td><strong>${esc(a.nombre)}</strong></td>
+                <td>${salaBadge(a.sala)}</td>
+                <td>${mensBadge(p.mensualidad)}</td>
+                <td style="font-size:.77rem">${fmtDate(p.fecha)}</td>
+                <td style="font-size:.77rem">${esc(p.banco)}</td>
+                <td style="font-size:.73rem;color:var(--text3)">${esc(p.nroCheque||'—')}</td>
+                <td style="color:var(--green);font-weight:700;font-family:'Sora',sans-serif">${fmtMoney(p.monto)}</td>
+                <td style="font-size:.73rem;color:var(--text3)">${esc(p.comentario||'')}</td>
+                ${canEdit()?`<td><button class="btn btn-danger btn-sm" onclick="askDelete('pago',${p.id})">🗑</button></td>`:''}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `);
+}
+function openPagoModalSelect(){
+  const rut=prompt('Ingresa el RUT del alumno para registrar el pago:');
+  if(!rut)return;
+  const a=state.alumnos.find(x=>x.rut===rut.trim()&&x.periodo===state.currentPeriodo);
+  if(!a){showToast('Alumno no encontrado','error','❌');return;}
+  openPagoModal(a.id);
+}
+
+// ═══════════════════════════════════════════════════
+//  HISTORIAL PAGOS
+// ═══════════════════════════════════════════════════
+function renderHistorial(){
+  const todos=[...state.pagos].reverse();
+  const periodos=[...new Set(state.pagos.map(p=>p.periodo))].sort((a,b)=>b-a);
+  const totalGlobal=state.pagos.reduce((s,p)=>s+Number(p.monto),0);
+  setContent(`
+    <div class="stats-grid" style="margin-bottom:14px">
+      <div class="stat-card c-green">
+        <div class="stat-label">Total Histórico</div>
+        <div class="stat-num" style="font-size:1.3rem">${fmtMoney(totalGlobal)}</div>
+        <div class="stat-sub">${state.pagos.length} pagos en total</div>
+      </div>
+      ${periodos.map(p=>{
+        const t=state.pagos.filter(x=>x.periodo===p).reduce((s,x)=>s+Number(x.monto),0);
+        return `<div class="stat-card c-accent">
+          <div class="stat-label">Periodo ${p}</div>
+          <div class="stat-num" style="font-size:1.2rem">${fmtMoney(t)}</div>
+          <div class="stat-sub">${state.pagos.filter(x=>x.periodo===p).length} pagos</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="table-card">
+      <div class="table-header">
+        <span class="table-title">Historial completo de pagos</span>
+        <button class="btn btn-outline btn-sm" onclick="exportPagosExcel(true)">📥 Exportar todo</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Periodo</th><th>Alumno</th><th>Sala</th><th>Concepto</th>
+            <th>Fecha</th><th>Banco</th><th>Monto</th><th>Comentario</th>
+          </tr></thead>
+          <tbody>
+            ${todos.map(p=>{
+              const a=state.alumnos.find(x=>x.id===p.alumnoId)||{nombre:p.rut||'—',sala:''};
+              return `<tr>
+                <td><span class="badge badge-m">${p.periodo}</span></td>
+                <td><strong>${esc(a.nombre)}</strong></td>
+                <td>${salaBadge(a.sala)}</td>
+                <td>${mensBadge(p.mensualidad)}</td>
+                <td style="font-size:.77rem">${fmtDate(p.fecha)}</td>
+                <td style="font-size:.77rem">${esc(p.banco)}</td>
+                <td style="color:var(--green);font-weight:700">${fmtMoney(p.monto)}</td>
+                <td style="font-size:.73rem;color:var(--text3)">${esc(p.comentario||'')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `);
+}
+
+// ═══════════════════════════════════════════════════
+//  RESUMEN POR SALA
+// ═══════════════════════════════════════════════════
+function renderResumen(){
+  const salas=['VERDE','ROJA','AZUL','AMARILLA'];
+  const salaEmoji={VERDE:'🟢',ROJA:'🔴',AZUL:'🔵',AMARILLA:'🟡'};
+  const meses=['MATRICULA','1 BIMESTRE','2 BIMESTRE','3 BIMESTRE','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  setContent(`
+    <div class="resumen-grid">
+      ${salas.map(sala=>{
+        const alumnos=state.alumnos.filter(a=>a.sala===sala&&a.situacion==='VIGENTE'&&a.periodo===state.currentPeriodo);
+        const pagosSala=state.pagos.filter(p=>{
+          const a=state.alumnos.find(x=>x.id===p.alumnoId);
+          return a&&a.sala===sala&&p.periodo===state.currentPeriodo;
+        });
+        const totalSala=pagosSala.reduce((s,p)=>s+Number(p.monto),0);
+        return `<div class="resumen-card">
+          <div class="resumen-card-header" style="background:rgba(0,0,0,.1)">
+            <div class="sala-icon" style="background:var(--${sala.toLowerCase()})">${salaEmoji[sala]}</div>
+            <div>
+              <h3>Sala ${sala}</h3>
+              <div style="font-size:.72rem;color:var(--text3)">${fmtMoney(totalSala)} ingresado</div>
+            </div>
+            <div class="count" style="color:var(--${sala.toLowerCase()})">${alumnos.length}</div>
+          </div>
+          <div style="padding:12px 16px">
+            ${alumnos.map(a=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2)">
+              <div style="font-size:.8rem">${esc(a.nombre)}</div>
+              <div style="font-size:.72rem;color:var(--text3)">${a.jornada||'—'}</div>
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Detalle de pagos por sala y mes · Periodo ${state.currentPeriodo}</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Alumno</th><th>Sala</th>${meses.map(m=>`<th style="font-size:.6rem">${m}</th>`).join('')}<th>Total</th></tr>
+          </thead>
+          <tbody>
+            ${state.alumnos.filter(a=>a.periodo===state.currentPeriodo&&a.situacion==='VIGENTE').map(a=>{
+              const pagosMes={};
+              state.pagos.filter(p=>p.alumnoId===a.id&&p.periodo===state.currentPeriodo).forEach(p=>{
+                pagosMes[p.mensualidad]=(pagosMes[p.mensualidad]||0)+Number(p.monto);
+              });
+              const total=Object.values(pagosMes).reduce((s,v)=>s+v,0);
+              return `<tr>
+                <td style="font-size:.78rem"><strong>${esc(a.nombre)}</strong></td>
+                <td>${salaBadge(a.sala)}</td>
+                ${meses.map(m=>pagosMes[m]?
+                  `<td style="color:var(--green);font-size:.72rem;font-weight:600">${fmtMoney(pagosMes[m])}</td>`:
+                  `<td style="color:var(--text3);font-size:.72rem">—</td>`
+                ).join('')}
+                <td style="font-weight:700;color:var(--green)">${total?fmtMoney(total):'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `);
+}
+
+// ═══════════════════════════════════════════════════
+//  MINEDUC
+// ═══════════════════════════════════════════════════
+function renderMineduc(){
+  const data=state.alumnos.filter(a=>a.periodo===state.currentPeriodo);
+  setContent(`
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      <h3 style="font-size:.9rem;font-weight:700;flex:1">Lista oficial MINEDUC · Periodo ${state.currentPeriodo}</h3>
+      <button class="btn btn-outline btn-sm" onclick="exportMineduc()">📥 Exportar Excel</button>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>N°</th><th>RUT</th><th>Nombre</th><th>Género</th><th>F. Nac.</th>
+            <th>Sub-nivel</th><th>F. Matrícula</th><th>Domicilio</th>
+            <th>Mamá</th><th>Cel. Mamá</th><th>Papá</th><th>Cel. Papá</th>
+            <th>Mail Mamá</th><th>Mail Papá</th><th>Vigente</th><th>Motivo Retiro</th><th>Obs.</th>
+          </tr></thead>
+          <tbody>
+            ${data.map((a,i)=>`<tr>
+              <td>${i+1}</td>
+              <td style="font-family:monospace;font-size:.73rem">${esc(a.rut||'')}</td>
+              <td><strong>${esc(a.nombre)}</strong></td>
+              <td>${a.genero}</td>
+              <td>${fmtDate(a.fechaNac)}</td>
+              <td>${salaBadge(a.subNivel||a.sala)}</td>
+              <td>${fmtDate(a.fechaMatricula)}</td>
+              <td style="font-size:.72rem">${esc(a.domicilio||'')}</td>
+              <td>${esc(a.mama||'')}</td>
+              <td>${esc(a.celMama||'')}</td>
+              <td>${esc(a.papa||'')}</td>
+              <td>${esc(a.celPapa||'')}</td>
+              <td style="font-size:.7rem">${esc(a.mailMama||'')}</td>
+              <td style="font-size:.7rem">${esc(a.mailPapa||'')}</td>
+              <td>${a.situacion==='VIGENTE'?'VIGENTE':'NO'}</td>
+              <td style="font-size:.73rem">${esc(a.motivoRetiro||'')}</td>
+              <td style="font-size:.73rem">${esc(a.observaciones||'')}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `);
+}
+
+// ═══════════════════════════════════════════════════
+//  CORREOS
+// ═══════════════════════════════════════════════════
+function renderCorreos(){
+  const salas=['VERDE','ROJA','AZUL','AMARILLA'];
+  const salaEmoji={VERDE:'🟢',ROJA:'🔴',AZUL:'🔵',AMARILLA:'🟡'};
+  setContent(`
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+      <h3 style="flex:1;font-size:.9rem;font-weight:700">Correos de apoderados por sala · Periodo ${state.currentPeriodo}</h3>
+      <button class="btn btn-outline btn-sm" onclick="copyAllEmails()">📋 Copiar todos</button>
+    </div>
+    ${salas.map(sala=>{
+      const alumnos=state.alumnos.filter(a=>a.sala===sala&&a.situacion==='VIGENTE'&&a.periodo===state.currentPeriodo);
+      const emails=alumnos.flatMap(a=>[a.mailMama,a.mailPapa].filter(Boolean)).join(';');
+      return `<div class="correo-group">
+        <h4>${salaEmoji[sala]} Sala ${sala} (${alumnos.length} alumnos)</h4>
+        <div class="correo-list">
+          <p id="emails-${sala}">${emails||'Sin correos registrados'}</p>
+        </div>
+        <div class="copy-btn-area">
+          <button class="btn btn-outline btn-sm" onclick="copyEmails('${sala}')">📋 Copiar lista ${sala}</button>
+        </div>
+      </div>`;
+    }).join('')}
+  `);
+}
+function copyEmails(sala){
+  const el=document.getElementById('emails-'+sala);
+  if(!el)return;
+  navigator.clipboard.writeText(el.textContent).then(()=>showToast(`Correos sala ${sala} copiados`,'success','📋'));
+}
+function copyAllEmails(){
+  const salas=['VERDE','ROJA','AZUL','AMARILLA'];
+  const all=salas.map(s=>{
+    const el=document.getElementById('emails-'+s);
+    return el?el.textContent:'';
+  }).filter(Boolean).join(';');
+  navigator.clipboard.writeText(all).then(()=>showToast('Todos los correos copiados','success','📋'));
+}
+
+// ═══════════════════════════════════════════════════
+//  IMPORTAR EXCEL
+// ═══════════════════════════════════════════════════
+function renderImportar(){
+  setContent(`
+    <div style="max-width:700px">
+      <div class="table-card" style="padding:0">
+        <div class="table-header">
+          <span class="table-title">Importar desde Excel</span>
+        </div>
+        <div style="padding:20px">
+          <p style="font-size:.83rem;color:var(--text2);margin-bottom:14px">
+            Puedes importar alumnos y pagos desde archivos Excel (.xlsx, .xlsm, .csv).
+            El sistema intentará mapear las columnas automáticamente basándose en los encabezados.
+          </p>
+          <div class="tabs" id="import-tabs">
+            <div class="tab active" onclick="switchImportTab('alumnos',this)">👥 Alumnos</div>
+            <div class="tab" onclick="switchImportTab('pagos',this)">💰 Pagos</div>
+          </div>
+          <div id="import-content">
+            ${buildImportZone('alumnos')}
+          </div>
+          <div style="margin-top:20px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px">
+            <div style="font-size:.75rem;font-weight:700;color:var(--text3);margin-bottom:8px">📋 Columnas esperadas para ALUMNOS:</div>
+            <div style="font-size:.72rem;color:var(--text2);line-height:1.8">
+              RUT / NOMBRE / GÉNERO / FECHA NACIMIENTO / SUB-NIVEL (sala) / JORNADA / FECHA MATRÍCULA / DOMICILIO / NOMBRE MADRE / CELULAR MADRE / NOMBRE PADRE / CELULAR PADRE / MAIL MADRE / MAIL PADRE / VIGENTE / MOTIVO RETIRO / OBSERVACIONES
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="import-preview" style="margin-top:16px"></div>
+    </div>
+  `);
+}
+let importType='alumnos';
+function switchImportTab(type,el){
+  importType=type;
+  document.querySelectorAll('#import-tabs .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('import-content').innerHTML=buildImportZone(type);
+}
+function buildImportZone(type){
+  return `<div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input-${type}').click()"
+    ondragover="event.preventDefault();this.classList.add('drag')"
+    ondragleave="this.classList.remove('drag')"
+    ondrop="handleDrop(event,'${type}')">
+    <input type="file" id="file-input-${type}" accept=".xlsx,.xlsm,.csv" style="display:none" onchange="handleFileImport(this,'${type}')">
+    <span class="uz-icon">📂</span>
+    <h3>Arrastra tu archivo Excel aquí</h3>
+    <p>o haz clic para seleccionar · .xlsx · .xlsm · .csv</p>
+  </div>`;
+}
+function handleDrop(e,type){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  const file=e.dataTransfer.files[0];
+  if(file)processImportFile(file,type);
+}
+function handleFileImport(input,type){
+  const file=input.files[0];
+  if(file)processImportFile(file,type);
+}
+function processImportFile(file,type){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      // Find most relevant sheet
+      let sheetName=wb.SheetNames[0];
+      if(type==='alumnos'){
+        sheetName=wb.SheetNames.find(n=>n.includes('BASE')&&!n.includes('MINEDUC'))||
+                  wb.SheetNames.find(n=>n.includes('BASE'))||wb.SheetNames[0];
+      } else {
+        sheetName=wb.SheetNames.find(n=>n.includes('PAGO'))||wb.SheetNames[0];
+      }
+      const ws=wb.Sheets[sheetName];
+      const json=XLSX.utils.sheet_to_json(ws,{defval:''});
+      previewImport(json,type,file.name,sheetName);
+    }catch(err){
+      showToast('Error al leer el archivo: '+err.message,'error','❌');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function previewImport(rows,type,filename,sheetName){
+  const validRows=rows.filter(r=>Object.values(r).some(v=>v&&String(v).trim()));
+  const preview=validRows.slice(0,5);
+  const cols=validRows.length>0?Object.keys(validRows[0]):[];
+  document.getElementById('import-preview').innerHTML=`
+    <div class="table-card">
+      <div class="table-header">
+        <div>
+          <span class="table-title">Vista previa: ${filename}</span>
+          <span style="font-size:.72rem;color:var(--text3);margin-left:8px">Hoja: ${sheetName} · ${validRows.length} filas</span>
+        </div>
+        ${canEdit()?`<button class="btn btn-primary btn-sm" onclick="confirmImport(${JSON.stringify(JSON.stringify(validRows))},${JSON.stringify(type)})">
+          ✅ Importar ${validRows.length} registros
+        </button>`:''}
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>${cols.slice(0,8).map(c=>`<th>${esc(String(c).substring(0,15))}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${preview.map(r=>`<tr>${cols.slice(0,8).map(c=>`<td style="font-size:.75rem">${esc(String(r[c]).substring(0,20))}</td>`).join('')}</tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      ${!canEdit()?'<p style="padding:10px 16px;font-size:.8rem;color:var(--red)">Sin permisos de edición</p>':''}
+    </div>
+  `;
+}
+function confirmImport(rowsStr,type){
+  if(!canEdit())return;
+  const rows=JSON.parse(rowsStr);
+  let imported=0,updated=0,skipped=0;
+  if(type==='alumnos'){
+    rows.forEach(row=>{
+      const rut=String(row['RUT']||row['rut']||row['Rut']||'').trim();
+      const nombre=String(row['NOMBRE']||row['Nombre']||row['nombre']||'').trim();
+      if(!nombre&&!rut){skipped++;return;}
+      const mapSala=(v)=>{v=String(v||'').toUpperCase();if(v.includes('VERDE'))return 'VERDE';if(v.includes('ROJA'))return 'ROJA';if(v.includes('AZUL'))return 'AZUL';if(v.includes('AMARILLA'))return 'AMARILLA';return v;};
+      const data={
+        rut, nombre,
+        genero:String(row['GENERO']||row['GÉNERO']||row['Género']||'').includes('FEM')?'FEMENINO':'MASCULINO',
+        sala:mapSala(row['SUB-NIVEL']||row['SALA']||row['Sala']||row['sala']||''),
+        jornada:String(row['JORNADA']||row['Jornada']||'').toUpperCase(),
+        mama:String(row['NOMBRE MADRE']||row['MAMÁ']||row['Mamá']||row['mama']||''),
+        celMama:String(row['CELULAR MADRE']||row['CEL.MAMÁ']||row['celMama']||''),
+        mailMama:String(row['MAIL MADRE']||row['MAIL MAMÁ']||row['mailMama']||''),
+        papa:String(row['NOMBRE PADRE']||row['PAPÁ']||row['Papa']||row['papa']||''),
+        celPapa:String(row['CELULAR PADRE']||row['CEL.PAPÁ']||row['celPapa']||''),
+        mailPapa:String(row['MAIL PADRE']||row['MAIL PAPÁ']||row['mailPapa']||''),
+        domicilio:String(row['DOMICILIO']||row['Domicilio']||''),
+        situacion:String(row['VIGENTE']||row['SITUACIÓN']||'').toUpperCase().includes('VIG')?'VIGENTE':'RETIRADO',
+        motivoRetiro:String(row['MOTIVO RETIRO']||row['Motivo Retiro']||''),
+        observaciones:String(row['OBSERVACIONES']||row['Observaciones']||''),
+        periodo:state.currentPeriodo,
+        subNivel:mapSala(row['SUB-NIVEL']||''),
+      };
+      const existing=state.alumnos.findIndex(a=>a.rut===rut&&a.periodo===state.currentPeriodo);
+      if(existing>=0){state.alumnos[existing]={...state.alumnos[existing],...data};updated++;}
+      else{data.id=nextAlumnoId++;state.alumnos.push(data);imported++;}
+    });
+    saveState();
+    showToast(`Importados: ${imported} nuevos, ${updated} actualizados, ${skipped} omitidos`,'success','✅');
+  } else {
+    rows.forEach(row=>{
+      const monto=parseFloat(String(row['MONTO']||row['monto']||0).replace(/[^0-9.]/g,''));
+      if(!monto){skipped++;return;}
+      const rut=String(row['RUT']||row['rut']||'').trim();
+      const a=state.alumnos.find(x=>x.rut===rut&&x.periodo===state.currentPeriodo);
+      const pago={
+        id:nextPagoId++, alumnoId:a?.id||null, rut,
+        nroBoleta:String(row['Nº Boleta']||row['BOLETA']||''),
+        monto, banco:String(row['BANCO']||row['banco']||''),
+        nroCheque:String(row['Nº CHEQUE']||row['CHEQUE']||''),
+        fecha:String(row['FECHA']||row['fecha']||''),
+        mensualidad:String(row['MENSUALIDAD']||row['mensualidad']||''),
+        comentario:String(row['COMENTARIO']||row['comentario']||''),
+        periodo:state.currentPeriodo,
+      };
+      state.pagos.push(pago); imported++;
+    });
+    saveState();
+    showToast(`Pagos importados: ${imported}, omitidos: ${skipped}`,'success','✅');
+  }
+  scheduleAutoBackup();
+}
+
+// ═══════════════════════════════════════════════════
+//  USUARIOS
+// ═══════════════════════════════════════════════════
+function renderUsuarios(){
+  if(!isAdmin()){setContent(`<div class="empty-state"><span class="es-icon">🔒</span><p>Solo administradores pueden gestionar usuarios</p></div>`);return;}
+  setContent(`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+      <button class="btn btn-primary btn-sm" onclick="openUsuarioModal(null)">➕ Nuevo Usuario</button>
+    </div>
+    <div class="users-grid">
+      ${state.usuarios.map(u=>{
+        const roles={admin:'👑 Admin',editor:'✏️ Editor',viewer:'👁 Solo lectura'};
+        const roleClasses={admin:'admin',editor:'editor',viewer:'viewer'};
+        return `<div class="user-card">
+          <div class="avatar">${u.nombre.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase()}</div>
+          <div class="ui">
+            <div class="name">${esc(u.nombre)} ${u.id===state.currentUser.id?'<span style="font-size:.65rem;color:var(--gold)">(tú)</span>':''}</div>
+            <div class="email">${esc(u.email)}</div>
+            <div style="margin-top:3px"><span class="sb-role-badge ${roleClasses[u.perfil]}">${roles[u.perfil]||u.perfil}</span>
+            ${!u.activo?'<span class="badge badge-retirado" style="margin-left:4px">Inactivo</span>':''}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" onclick="openUsuarioModal(${u.id})">✏️</button>
+            ${u.id!==state.currentUser.id?`<button class="btn btn-danger btn-sm" onclick="askDelete('usuario',${u.id})">🗑</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+      <h4 style="font-size:.82rem;font-weight:700;margin-bottom:10px">📋 Perfiles de acceso</h4>
+      <div style="font-size:.78rem;color:var(--text2);line-height:2">
+        <div>👑 <strong>Administrador:</strong> Acceso total — puede gestionar usuarios, eliminar registros y configurar el sistema</div>
+        <div>✏️ <strong>Editor:</strong> Puede crear, editar y eliminar alumnos y pagos</div>
+        <div>👁 <strong>Solo lectura:</strong> Solo puede ver información, sin modificaciones</div>
+      </div>
+    </div>
+  `);
+}
+function openUsuarioModal(id){
+  state.editingUsuarioId=id;
+  const u=id?state.usuarios.find(x=>x.id===id):{};
+  document.getElementById('mu-title').textContent=id?`Editar: ${u.nombre}`:'Nuevo Usuario';
+  document.getElementById('mu-body').innerHTML=`<div class="form-grid" style="grid-template-columns:1fr">
+    <div class="form-group">
+      <label>Nombre completo</label>
+      <input id="uf-nombre" value="${esc(u.nombre||'')}" placeholder="Nombre Apellido">
+    </div>
+    <div class="form-group">
+      <label>Correo (será el ID de usuario)</label>
+      <input id="uf-email" type="email" value="${esc(u.email||'')}" placeholder="correo@ejemplo.com" ${id?'readonly':''}>
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input id="uf-pass" type="text" value="${esc(u.password||'')}" placeholder="${id?'Dejar vacío para no cambiar':'Contraseña'}">
+    </div>
+    <div class="form-group">
+      <label>Perfil de acceso</label>
+      <select id="uf-perfil">
+        <option value="admin" ${u.perfil==='admin'?'selected':''}>👑 Administrador</option>
+        <option value="editor" ${u.perfil==='editor'?'selected':''}>✏️ Editor</option>
+        <option value="viewer" ${(u.perfil==='viewer'||!u.perfil)?'selected':''}>👁 Solo lectura</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Estado</label>
+      <select id="uf-activo">
+        <option value="1" ${u.activo!==false?'selected':''}>✅ Activo</option>
+        <option value="0" ${u.activo===false?'selected':''}>❌ Inactivo</option>
+      </select>
+    </div>
+  </div>`;
+  openModal('modal-usuario');
+}
+function saveUsuario(){
+  const nombre=(document.getElementById('uf-nombre').value||'').trim();
+  const email=(document.getElementById('uf-email').value||'').trim().toLowerCase();
+  const pass=document.getElementById('uf-pass').value;
+  const perfil=document.getElementById('uf-perfil').value;
+  const activo=document.getElementById('uf-activo').value==='1';
+  if(!nombre||!email){showToast('Nombre y email son obligatorios','error','⚠️');return;}
+  if(state.editingUsuarioId){
+    const idx=state.usuarios.findIndex(u=>u.id===state.editingUsuarioId);
+    state.usuarios[idx]={...state.usuarios[idx],nombre,perfil,activo};
+    if(pass)state.usuarios[idx].password=pass;
+    showToast('Usuario actualizado ✅');
+  } else {
+    if(state.usuarios.find(u=>u.email===email)){showToast('El correo ya existe','error','❌');return;}
+    if(!pass){showToast('La contraseña es obligatoria','error','⚠️');return;}
+    state.usuarios.push({id:nextUserId++,email,nombre,password:pass,perfil,activo,creado:new Date().toISOString().split('T')[0]});
+    showToast('Usuario creado ✅');
+  }
+  saveState(); closeModal('modal-usuario'); renderUsuarios();
+}
+
+// ═══════════════════════════════════════════════════
+//  BACKUP & DRIVE
+// ═══════════════════════════════════════════════════
+function renderBackup(){
+  const meta=state.backupMeta;
+  setContent(`
+    <div style="max-width:660px;display:flex;flex-direction:column;gap:16px">
+      <div class="table-card" style="padding:0">
+        <div class="table-header"><span class="table-title">💾 Backup local (archivo JSON)</span></div>
+        <div style="padding:18px">
+          <p style="font-size:.83rem;color:var(--text2);margin-bottom:14px">
+            Descarga un archivo de respaldo completo con todos los datos del sistema.
+            Puedes subirlo manualmente a tu Google Drive u otro servicio de almacenamiento.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="downloadBackup()">⬇️ Descargar Backup JSON</button>
+            <button class="btn btn-outline" onclick="document.getElementById('restore-input').click()">⬆️ Restaurar desde Backup</button>
+            <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreBackup(this)">
+          </div>
+          <div style="margin-top:12px;font-size:.75rem;color:var(--text3)">
+            Último backup manual: ${meta.lastBackup?fmtDate(meta.lastBackup):'Nunca'}
+          </div>
+        </div>
+      </div>
+      <div class="table-card" style="padding:0">
+        <div class="table-header"><span class="table-title">☁️ Google Drive (simulado)</span></div>
+        <div style="padding:18px">
+          <div class="drive-connect">
+            <h4>🔗 Conectar con Google Drive</h4>
+            <p>El backup automático se guardará en tu Drive cada vez que realices cambios importantes.
+            En producción esto requiere configurar la API de Google Drive con OAuth2.</p>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="simulateDriveConnect()">
+                <span>🔗</span> Conectar Drive (demo)
+              </button>
+              ${meta.driveConnected?`<button class="btn btn-green" onclick="simulateDriveBackup()">☁️ Subir a Drive</button>`:''}
+            </div>
+            ${meta.driveConnected?`<div style="margin-top:10px;font-size:.75rem;color:var(--green)">
+              ✅ Drive conectado · Archivo: ${meta.driveFile||'backup_sistema.json'}</div>`:''}
+          </div>
+        </div>
+      </div>
+      <div class="table-card" style="padding:0">
+        <div class="table-header"><span class="table-title">📅 Gestión de Periodos</span></div>
+        <div style="padding:18px">
+          <p style="font-size:.83rem;color:var(--text2);margin-bottom:14px">
+            El sistema mantiene datos de múltiples periodos. Al cambiar de periodo, los datos del anterior quedan conservados.
+          </p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:.78rem;font-weight:600">Periodo activo:</label>
+            <select class="filter-input" onchange="cambiarPeriodo(this.value)">
+              ${['2023','2024','2025','2026'].map(p=>`<option value="${p}" ${state.currentPeriodo===p?'selected':''}>${p}</option>`).join('')}
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="nuevoPeriodo()">+ Nuevo periodo</button>
+          </div>
+          <div style="margin-top:14px">
+            <div style="font-size:.75rem;font-weight:700;color:var(--text3);margin-bottom:8px">Datos por periodo:</div>
+            ${['2023','2024','2025','2026'].map(p=>{
+              const n=state.alumnos.filter(a=>a.periodo===p).length;
+              const np=state.pagos.filter(x=>x.periodo===p).length;
+              if(!n&&!np)return '';
+              return `<div style="display:flex;gap:10px;font-size:.78rem;padding:5px 0;border-bottom:1px solid var(--border2)">
+                <span style="font-weight:600;min-width:50px">${p}</span>
+                <span style="color:var(--text3)">${n} alumnos</span>
+                <span style="color:var(--text3)">${np} pagos</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="table-card" style="padding:0">
+        <div class="table-header"><span class="table-title">📊 Estado del sistema</span></div>
+        <div style="padding:18px">
+          <div class="detail-grid">
+            <div class="detail-item"><div class="dl">Total alumnos</div><div class="dv">${state.alumnos.length}</div></div>
+            <div class="detail-item"><div class="dl">Total pagos</div><div class="dv">${state.pagos.length}</div></div>
+            <div class="detail-item"><div class="dl">Usuarios</div><div class="dv">${state.usuarios.length}</div></div>
+            <div class="detail-item"><div class="dl">Periodos con datos</div><div class="dv">${[...new Set(state.alumnos.map(a=>a.periodo))].length}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+}
+function downloadBackup(){
+  const backup={
+    version:'1.0', fecha:new Date().toISOString(), sistema:'Sistema de Control',
+    alumnos:state.alumnos, pagos:state.pagos, usuarios:state.usuarios.map(u=>({...u,password:'***'})),
+    historico:state.historico,
+  };
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`backup_sistema_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  state.backupMeta.lastBackup=new Date().toISOString();
+  DB.set('sc_backup_meta',state.backupMeta);
+  updateBackupStatus();
+  showToast('Backup descargado ✅','success','💾');
+}
+function restoreBackup(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.alumnos)throw new Error('Formato inválido');
+      if(!confirm(`¿Restaurar backup del ${fmtDate(data.fecha?.split('T')[0])}? Se reemplazarán todos los datos actuales.`))return;
+      state.alumnos=data.alumnos||[];
+      state.pagos=data.pagos||[];
+      if(data.historico)state.historico=data.historico;
+      nextAlumnoId=Math.max(0,...state.alumnos.map(a=>a.id))+1;
+      nextPagoId=Math.max(0,...state.pagos.map(p=>p.id))+1;
+      saveState();
+      showToast('Datos restaurados correctamente ✅','success','📂');
+      renderDashboard();
+    }catch(err){showToast('Error al restaurar: '+err.message,'error','❌');}
+  };
+  reader.readAsText(file);
+  input.value='';
+}
+function simulateDriveConnect(){
+  state.backupMeta.driveConnected=true;
+  state.backupMeta.driveFile='backup_sistema_control.json';
+  DB.set('sc_backup_meta',state.backupMeta);
+  showToast('Drive conectado (demo) ✅','success','☁️');
+  renderBackup();
+}
+function simulateDriveBackup(){
+  showToast('Subiendo a Drive...','info','☁️');
+  setTimeout(()=>{
+    state.backupMeta.lastBackup=new Date().toISOString();
+    DB.set('sc_backup_meta',state.backupMeta);
+    updateBackupStatus();
+    showToast('Backup subido a Drive ✅','success','☁️');
+  },1500);
+}
+function cambiarPeriodo(p){
+  state.currentPeriodo=p;
+  DB.set('sc_periodo',p);
+  document.getElementById('periodo-selector').textContent='📅 '+p;
+  showToast('Periodo cambiado a '+p,'info','📅');
+  nav('dashboard');
+}
+function nuevoPeriodo(){
+  const p=prompt('Ingresa el nuevo periodo (ej: 2026):');
+  if(!p||!/^\d{4}$/.test(p.trim())){showToast('Año inválido','error','⚠️');return;}
+  cambiarPeriodo(p.trim());
+}
+let autoBackupTimer=null;
+function scheduleAutoBackup(){
+  if(autoBackupTimer)clearTimeout(autoBackupTimer);
+  autoBackupTimer=setTimeout(()=>{
+    state.backupMeta.lastBackup=new Date().toISOString();
+    DB.set('sc_backup_meta',state.backupMeta);
+    updateBackupStatus();
+    if(state.backupMeta.driveConnected){simulateDriveBackup();}
+  },5000);
+  updateBackupStatus('pending');
+}
+function updateBackupStatus(status){
+  const dot=document.getElementById('backup-dot');
+  const lbl=document.getElementById('backup-label');
+  if(!dot||!lbl)return;
+  if(status==='pending'){dot.className='backup-dot stale';lbl.textContent='Guardando...';}
+  else{
+    const last=state.backupMeta.lastBackup;
+    dot.className='backup-dot';
+    lbl.textContent=last?'Backup: '+fmtDate(last.split('T')[0]):'Sin backup';
+  }
+}
+function triggerBackup(){downloadBackup();}
+
+// ═══════════════════════════════════════════════════
+//  EXPORTS
+// ═══════════════════════════════════════════════════
+function exportAlumnosExcel(){
+  const data=state.alumnos.filter(a=>a.periodo===state.currentPeriodo).map((a,i)=>({
+    'N°':i+1,'RUT':a.rut,'NOMBRE':a.nombre,'GÉNERO':a.genero,
+    'FECHA NACIMIENTO':a.fechaNac,'SALA':a.sala,'SUB-NIVEL':a.subNivel||a.sala,
+    'JORNADA':a.jornada,'FECHA MATRÍCULA':a.fechaMatricula,'DOMICILIO':a.domicilio,
+    'NOMBRE MADRE':a.mama,'CELULAR MADRE':a.celMama,'MAIL MADRE':a.mailMama,
+    'NOMBRE PADRE':a.papa,'CELULAR PADRE':a.celPapa,'MAIL PADRE':a.mailPapa,
+    'SITUACIÓN':a.situacion,'MOTIVO RETIRO':a.motivoRetiro,'OBSERVACIONES':a.observaciones,
+  }));
+  exportToExcel(data,'Alumnos_'+state.currentPeriodo,'alumnos_'+state.currentPeriodo+'.xlsx');
+}
+function exportPagosExcel(all=false){
+  const source=all?state.pagos:state.pagos.filter(p=>p.periodo===state.currentPeriodo);
+  const data=source.map((p,i)=>{
+    const a=state.alumnos.find(x=>x.id===p.alumnoId)||{nombre:p.rut||'—',sala:''};
+    return {'N°':i+1,'Periodo':p.periodo,'N° Boleta':p.nroBoleta,'Alumno':a.nombre,'Sala':a.sala,
+      'Jornada':a.jornada,'Concepto':p.mensualidad,'Monto':p.monto,'Banco':p.banco,
+      'Referencia':p.nroCheque,'Fecha':p.fecha,'Comentario':p.comentario};
+  });
+  exportToExcel(data,'Pagos_'+state.currentPeriodo,'pagos_'+state.currentPeriodo+'.xlsx');
+}
+function exportMineduc(){
+  const data=state.alumnos.filter(a=>a.periodo===state.currentPeriodo).map((a,i)=>({
+    'N°':i+1,'RUT':a.rut,'NOMBRE':a.nombre,'GENERO':a.genero,
+    'FECHA NACIMIENTO':a.fechaNac,'SUB-NIVEL':a.subNivel||a.sala,
+    'FECHA EFECTIVA DE MATRICULA':a.fechaMatricula,'DOMICILIO':a.domicilio,
+    'NOMBRE MADRE':a.mama,'CELULAR MADRE':a.celMama,'NOMBRE PADRE':a.papa,'CELULAR PADRE':a.celPapa,
+    'MAIL MADRE':a.mailMama,'MAIL PADRE':a.mailPapa,
+    'VIGENTE':a.situacion==='VIGENTE'?'VIGENTE':'NO',
+    'MOTIVO RETIRO':a.motivoRetiro,'OBSERVACIONES':a.observaciones,
+  }));
+  exportToExcel(data,'BASE MINEDUC','lista_mineduc_'+state.currentPeriodo+'.xlsx');
+}
+function exportToExcel(data,sheetName,filename){
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  XLSX.writeFile(wb,filename);
+  showToast('Archivo exportado ✅','success','📥');
+}
+
+// ═══════════════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+  }
+});
+</script>
+</body>
+</html>
