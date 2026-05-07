@@ -1601,6 +1601,7 @@ function saveAlumno(){
     showToast('Alumno registrado ✅');
   }
   saveStateAndBackup();
+  DB.set('sc_alumnos', state.alumnos); // immediate write
   closeModal('modal-alumno');
   renderAlumnos();
 }
@@ -2216,11 +2217,13 @@ function openEditPagoModal(pagoId){
 
 function saveEditPago(){
   const pagoId = state._editingPagoId;
-  if(!pagoId)return;
-  const monto = parseFloat(document.getElementById('pf-monto').value);
+  if(!pagoId){ showToast('Error: sin pago activo para editar','error','⚠️'); return; }
+  const montoEl = document.getElementById('pf-monto');
+  if(!montoEl){ showToast('Error: formulario no encontrado','error','⚠️'); return; }
+  const monto = parseFloat(montoEl.value);
   if(!monto||monto<=0){showToast('Ingresa un monto válido','error','⚠️');return;}
-  const idx = state.pagos.findIndex(p=>p.id===pagoId);
-  if(idx<0)return;
+  const idx = state.pagos.findIndex(p=>p.id===pagoId || p.id===Number(pagoId) || String(p.id)===String(pagoId));
+  if(idx<0){ showToast('Error: pago no encontrado (id='+pagoId+')','error','⚠️'); return; }
   state.pagos[idx] = {
     ...state.pagos[idx],
     alumnoId:    state.pagoAlumnoId || state.pagos[idx].alumnoId,
@@ -2244,11 +2247,15 @@ function saveEditPago(){
   if(btn) btn.textContent = '💰 Registrar Pago';
   state._editingPagoId = null;
   state.pagoAlumnoId = null;
+  // Force save to localStorage immediately
+  DB.set('sc_pagos', state.pagos);
+  DB.set('sc_alumnos', state.alumnos);
   // Refresh current view
   if(state.currentView==='pagos') renderPagos();
   else if(state.currentView==='historial') renderHistorial();
   else if(state.currentView==='resumen') renderResumen();
   else if(state.currentView==='dashboard') renderDashboard();
+  else nav(state.currentView);
 }
 
 function renderPagos(){
