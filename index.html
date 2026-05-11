@@ -613,11 +613,72 @@ var _saveDebounce   = null;
 // ═══════════════════════════════════════════════════
 //  STORAGE HELPERS
 // ═══════════════════════════════════════════════════
+const GITHUB_CONFIG = {
+  owner: 'lsevilla',
+  repo: 'Girasoles-Sistema',
+  file: 'data/girasoles.json',
+  token: ,
+  branch: 'main'
+};
+
 const DB = {
   get(k,d=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){console.warn('Storage full',e);}},
   remove(k){localStorage.removeItem(k);}
 };
+
+// ── GITHUB BD ──────────────────────────────────────
+async function githubCargarDatos(){
+  try{
+    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.file}`;
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `token ${GITHUB_CONFIG.token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    if(!res.ok) throw new Error('Error al leer GitHub: '+res.status);
+    const json = await res.json();
+    const data = JSON.parse(atob(json.content.replace(/\n/g,'')));
+    // Guardar SHA para poder escribir después
+    localStorage.setItem('gh_sha', json.sha);
+    return data;
+  } catch(e){
+    console.warn('GitHub no disponible, usando datos locales:', e);
+    return null;
+  }
+}
+
+async function githubGuardarDatos(data){
+  try{
+    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.file}`;
+    const sha = localStorage.getItem('gh_sha');
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+    const body = {
+      message: `Backup automático ${new Date().toLocaleString('es-CL')}`,
+      content: content,
+      branch: GITHUB_CONFIG.branch,
+      sha: sha
+    };
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${GITHUB_CONFIG.token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error('Error al guardar: '+res.status);
+    const json = await res.json();
+    // Actualizar SHA
+    localStorage.setItem('gh_sha', json.content.sha);
+    return true;
+  } catch(e){
+    console.error('Error guardando en GitHub:', e);
+    return false;
+  }
+}
 
 // ═══════════════════════════════════════════════════
 //  INITIAL DATA
@@ -708,21 +769,16 @@ function saveState(){
 }
 function saveStateAndBackup(){
   saveState();
-  // Debounced backup to Drive after any change
   if(_saveDebounce) clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(()=>{
-    if(state.backupMeta.googleConnected && state.backupMeta.googleScriptUrl){
-      backupToGoogleDrive(true);
-    } else if(state.backupMeta.onedriveConnected){
-      backupToOneDrive(true);
-    }
-    updateBackupStatus('pending');
-    setTimeout(updateBackupStatus,3000);
-  }, 3000); // 3s debounce after last change
+    const backup = buildBackupObject();
+    githubGuardarDatos(backup).then(ok=>{
+      if(ok) updateBackupStatus('ok');
+    });
+  }, 4000);
   updateBackupStatus('pending');
 }
-
-// ═══════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
 //  AUTH
 // ═══════════════════════════════════════════════════
 function doLogin(){
@@ -782,23 +838,35 @@ function isAdmin(){return state.currentUser && state.currentUser.perfil==='admin
 // ═══════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════
-function initApp(){
+ffunction initApp(){
   renderSbUser();
   updateAdminVisibility();
   updateBackupStatus();
-  // Always schedule auto-backup (even without Drive — saves locally)
-  if(!state.backupMeta.autoIntervalMin) state.backupMeta.autoIntervalMin = 5;
-  state.backupMeta.autoEnabled = true;
-  DB.set('sc_backup_meta', state.backupMeta);
-  // Auto-sync from Drive on login
-  if(state.backupMeta.googleConnected && state.backupMeta.googleScriptUrl){
-    autoSyncFromDrive(); // This calls nav() after sync
-  } else {
-    scheduleAutoBackup(); // Start 5-min timer even without Drive
+  showSyncOverlay('Cargando datos desde GitHub...');
+  githubCargarDatos().then(data => {
+    if(data && data.alumnos){
+      state.alumnos = data.alumnos;
+      state.pagos = data.pagos || [];
+      // Preservar usuarios locales si tienen contraseñas reales
+      if(data.usuarios){
+        data.usuarios.forEach(u => {
+          if(u.password !== '***'){
+            const idx = state.usuarios.findIndex(x=>x.email===u.email);
+            if(idx>=0) state.usuarios[idx] = u;
+            else state.usuarios.push(u);
+          }
+        });
+      }
+      nextAlumnoId = Math.max(0,...state.alumnos.map(a=>a.id))+1;
+      nextPagoId   = Math.max(0,...state.pagos.map(p=>p.id))+1;
+      saveState();
+      showToast('Datos cargados desde GitHub ✅','success','🐙');
+    }
+    hideSyncOverlay();
+    scheduleAutoBackup();
     nav(state.currentView);
-  }
+  });
 }
-
 function autoSyncFromDrive(){
   const scriptUrl = state.backupMeta.googleScriptUrl;
   // Show loading overlay
