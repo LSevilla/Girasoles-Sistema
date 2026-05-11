@@ -5,44 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jardín Girasoles · Sistema de Control</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCwmh92mwHfb1LcscZfFP0g3doaQQY",
-  authDomain: "girasoles-sistema.firebaseapp.com",
-  projectId: "girasoles-sistema",
-  storageBucket: "girasoles-sistema.firebasestorage.app",
-  messagingSenderId: "179224082344",
-  appId: "1:179224082344:web:8cf4788b0cc1e75a708f0d"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-async function firebaseCargar(){
-  try{
-    const doc = await db.collection('datos').doc('principal').get();
-    if(doc.exists){
-      const data = doc.data();
-      if(data.alumnos) return JSON.parse(data.alumnos);
-    }
-    return null;
-  } catch(e){ console.warn('Firebase error:', e); return null; }
-}
-
-async function firebaseGuardar(datos){
-  try{
-    await db.collection('datos').doc('principal').set({
-      alumnos: JSON.stringify(datos.alumnos),
-      pagos: JSON.stringify(datos.pagos),
-      fecha: new Date().toISOString()
-    });
-    return true;
-  } catch(e){ console.error('Error guardando:', e); return false; }
-}
-</script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#f4f6fb;--surface:#ffffff;--surface2:#f0f3fa;--surface3:#e8edf8;
@@ -641,11 +604,85 @@ tbody tr:last-child{border-bottom:none;}
 <script>
 'use strict';
 
+// ═══════════════════════════════════════════════════
+//  FIREBASE - Inicialización
+// ═══════════════════════════════════════════════════
+let fsdb = null;
+
+async function initFirebase(){
+  return new Promise((resolve) => {
+    // Cargar Firebase dinámicamente
+    const loadScript = (src) => new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = res;
+      s.onerror = rej;
+      document.head.appendChild(s);
+    });
+
+    Promise.all([
+      loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'),
+    ]).then(() => {
+      return loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js');
+    }).then(() => {
+      if(!firebase.apps.length){
+        firebase.initializeApp({
+          apiKey: "AIzaSyCwmh92mwHfb1LcscZfFP0g3doaQQY",
+          authDomain: "girasoles-sistema.firebaseapp.com",
+          projectId: "girasoles-sistema",
+          storageBucket: "girasoles-sistema.firebasestorage.app",
+          messagingSenderId: "179224082344",
+          appId: "1:179224082344:web:8cf4788b0cc1e75a708f0d"
+        });
+      }
+      fsdb = firebase.firestore();
+      resolve(true);
+    }).catch(e => {
+      console.warn('Firebase no disponible:', e);
+      resolve(false);
+    });
+  });
+}
+
+async function firebaseCargar(){
+  try{
+    if(!fsdb) return null;
+    const doc = await fsdb.collection('datos').doc('principal').get();
+    if(doc.exists){
+      const data = doc.data();
+      if(data.alumnos) return {alumnos:JSON.parse(data.alumnos), pagos:JSON.parse(data.pagos||'[]')};
+    }
+    return null;
+  } catch(e){ console.warn('Firebase error:', e); return null; }
+}
+
+async function firebaseGuardar(datos){
+  try{
+    if(!fsdb) return false;
+    await fsdb.collection('datos').doc('principal').set({
+      alumnos: JSON.stringify(datos.alumnos),
+      pagos: JSON.stringify(datos.pagos),
+      fecha: new Date().toISOString()
+    });
+    return true;
+  } catch(e){ console.error('Error guardando en Firebase:', e); return false; }
+}
+
+
 // ── TIMER VARIABLES (declared at top to avoid temporal dead zone) ──
 var autoBackupTimer = null;
 var countdownTimer  = null;
 var nextBackupAt    = null;
 var _saveDebounce   = null;
+
+// ═══════════════════════════════════════════════════
+//  STORAGE HELPERS
+// ═══════════════════════════════════════════════════
+const DB = {
+  get(k,d=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){console.warn('Storage full',e);}},
+  remove(k){localStorage.removeItem(k);}
+};
 
 // ═══════════════════════════════════════════════════
 //  INITIAL DATA
@@ -738,20 +775,20 @@ function saveStateAndBackup(){
   saveState();
   if(_saveDebounce) clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(()=>{
-    const backup = {
-      alumnos: state.alumnos,
-      pagos: state.pagos,
-    };
-    firebaseGuardar(backup).then(ok=>{
+    firebaseGuardar({alumnos: state.alumnos, pagos: state.pagos}).then(ok=>{
       if(ok){
         updateBackupStatus('ok');
         showToast('Guardado en Firebase ✅','success','🔥');
       }
     });
+    if(state.backupMeta.googleConnected && state.backupMeta.googleScriptUrl){
+      backupToGoogleDrive(true);
+    }
   }, 4000);
   updateBackupStatus('pending');
 }
-  // ═══════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════
 //  AUTH
 // ═══════════════════════════════════════════════════
 function doLogin(){
@@ -815,9 +852,12 @@ function initApp(){
   renderSbUser();
   updateAdminVisibility();
   updateBackupStatus();
-  showSyncOverlay('Cargando datos desde Firebase...');
-  firebaseCargar().then(data => {
-    if(data && data.alumnos){
+  showSyncOverlay('Conectando con Firebase...');
+  initFirebase().then(() => {
+    showSyncOverlay('Cargando datos...');
+    return firebaseCargar();
+  }).then(data => {
+    if(data && data.alumnos && data.alumnos.length > 0){
       state.alumnos = data.alumnos;
       state.pagos = data.pagos || [];
       nextAlumnoId = Math.max(0,...state.alumnos.map(a=>a.id))+1;
@@ -830,16 +870,7 @@ function initApp(){
     nav(state.currentView);
   });
 }
-      nextAlumnoId = Math.max(0,...state.alumnos.map(a=>a.id))+1;
-      nextPagoId   = Math.max(0,...state.pagos.map(p=>p.id))+1;
-      saveState();
-      showToast('Datos cargados desde GitHub ✅','success','🐙');
-    }
-    hideSyncOverlay();
-    scheduleAutoBackup();
-    nav(state.currentView);
-  });
-}
+
 function autoSyncFromDrive(){
   const scriptUrl = state.backupMeta.googleScriptUrl;
   // Show loading overlay
