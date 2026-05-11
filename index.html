@@ -862,6 +862,13 @@ function initApp(){
       state.pagos = data.pagos || [];
       nextAlumnoId = Math.max(0,...state.alumnos.map(a=>a.id))+1;
       nextPagoId   = Math.max(0,...state.pagos.map(p=>p.id))+1;
+      // Forzar siempre el periodo más reciente disponible
+      const periodos = [...new Set(state.alumnos.map(a=>a.periodo).filter(Boolean))].sort((a,b)=>b-a);
+      if(periodos.length > 0){
+        state.currentPeriodo = periodos[0];
+        DB.set('sc_periodo', periodos[0]);
+      }
+      state._resumenAnio = state.currentPeriodo;
       saveState();
       showToast('Datos cargados desde Firebase ✅','success','🔥');
     }
@@ -3079,8 +3086,8 @@ function renderResumen(){
 
   // Active filters
   const rSala = state._resumenSala || 'TODAS';
-  // Sync _resumenAnio with currentPeriodo if not set
-  if(!state._resumenAnio) state._resumenAnio = state.currentPeriodo;
+  // Siempre forzar _resumenAnio al currentPeriodo activo
+  state._resumenAnio = state.currentPeriodo;
   const rAnio = String(state._resumenAnio || state.currentPeriodo || '');
 
   // Alumnos to show
@@ -3343,8 +3350,8 @@ function scrollResumenTo(e){
 
 function exportResumenExcel(){
   const rSala = state._resumenSala || 'TODAS';
-  // Sync _resumenAnio with currentPeriodo if not set
-  if(!state._resumenAnio) state._resumenAnio = state.currentPeriodo;
+  // Siempre forzar _resumenAnio al currentPeriodo activo
+  state._resumenAnio = state.currentPeriodo;
   const rAnio = String(state._resumenAnio || state.currentPeriodo || '');
   const SALAS = ['VERDE','ROJA','AZUL','AMARILLA'];
   const BIM_MESES = {
