@@ -804,7 +804,7 @@ function saveState(){
   DB.set('sc_historico', state.historico);
   DB.set('sc_periodo', state.currentPeriodo);
 }
-ffunction saveStateAndBackup(){
+function saveStateAndBackup(){
   saveState();
   if(_saveDebounce) clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(()=>{
