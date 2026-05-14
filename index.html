@@ -862,7 +862,6 @@ function initApp(){
       state.pagos = data.pagos || [];
       nextAlumnoId = Math.max(0,...state.alumnos.map(a=>a.id))+1;
       nextPagoId   = Math.max(0,...state.pagos.map(p=>p.id))+1;
-      // Forzar siempre el periodo más reciente disponible
       const periodos = [...new Set(state.alumnos.map(a=>a.periodo).filter(Boolean))].sort((a,b)=>b-a);
       if(periodos.length > 0){
         state.currentPeriodo = periodos[0];
@@ -1411,6 +1410,84 @@ function confirmarBorradoMasivo(){
   );
 }
 
+
+// ── BÚSQUEDA DE ALUMNOS SIN PERDER FOCO ──────────────────
+function buscarAlumnosInput(val){
+  state.filters.buscar = val;
+  state.page = 1;
+  // Solo actualizar la tabla, no toda la vista
+  renderTablaAlumnos();
+}
+
+function renderTablaAlumnos(){
+  const f = state.filters;
+  let data = state.alumnos.filter(a=>a.periodo===state.currentPeriodo);
+  if(f.sala) data = data.filter(a=>a.sala===f.sala);
+  if(f.situacion) data = data.filter(a=>a.situacion===f.situacion);
+  if(f.jornada) data = data.filter(a=>a.jornada===f.jornada);
+  if(f.buscar){
+    const q=f.buscar.toLowerCase();
+    data=data.filter(a=>
+      a.nombre.toLowerCase().includes(q)||(a.rut||'').includes(q)||
+      (a.mama||'').toLowerCase().includes(q)||(a.papa||'').toLowerCase().includes(q)||
+      (a.mailMama||'').toLowerCase().includes(q)
+    );
+  }
+  const total = data.length;
+  const totalPages = Math.ceil(total/state.PER_PAGE);
+  const paged = data.slice((state.page-1)*state.PER_PAGE, state.page*state.PER_PAGE);
+
+  // Actualizar contador
+  const counter = document.getElementById('alumno-counter');
+  if(counter) counter.textContent = total+' alumno'+(total!==1?'s':'');
+
+  // Actualizar tabla
+  const tbody = document.getElementById('alumnos-tbody');
+  if(!tbody) { renderAlumnos(); return; }
+
+  if(paged.length===0){
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><span class="es-icon">👤</span><p>Sin alumnos</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = paged.map((a,i)=>`<tr ondblclick="openResumenAlumno(${a.id})" style="cursor:pointer" title="Doble clic para ver resumen completo">
+    ${state._bulkMode
+      ? '<td style="text-align:center"><input type="checkbox" class="bulk-chk" data-id="'+a.id+'" onchange="updateBulkCount()" style="width:14px;height:14px;cursor:pointer;accent-color:#dc2626"></td>'
+      : '<td style="color:var(--text3)">'+(((state.page-1)*state.PER_PAGE+i+1))+'</td>'}
+    <td>
+      <strong style="cursor:pointer;color:var(--accent)" onclick="openDetalle(${a.id})">${esc(a.nombre)}</strong>
+      <div style="font-size:.68rem;color:var(--text3)">${a.genero==='FEMENINO'?'👧':'👦'} ${a.genero}</div>
+    </td>
+    <td style="font-size:.75rem;font-family:monospace;color:var(--text2)">${esc(a.rut||'—')}</td>
+    <td>${salaBadge(a.sala)}</td>
+    <td><span style="font-size:.75rem;color:var(--text2)">${a.jornada||'—'}</span></td>
+    <td style="font-size:.75rem;color:var(--text3)">${calcEdad(a.fechaNac)}</td>
+    <td>
+      <div style="font-size:.8rem">${esc(a.mama||'—')}</div>
+      <div style="font-size:.68rem;color:var(--text3)">${esc(a.mailMama||'')}</div>
+    </td>
+    <td style="font-size:.77rem;color:var(--text2)">${esc(a.celMama||'—')}</td>
+    <td>${statusBadge(a.situacion)}</td>
+    <td>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="openDetalle(${a.id})" title="Ver detalle">👁</button>
+        ${canEdit()?`
+          <button class="btn btn-ghost btn-sm" onclick="openAlumnoModal(${a.id})" title="Editar">✏️</button>
+          <button class="btn btn-ghost btn-sm" onclick="openPagoModal(${a.id})" title="Registrar pago">💰</button>
+          <button class="btn btn-danger btn-sm" onclick="askDelete('alumno',${a.id})">🗑</button>
+        `:''}
+      </div>
+    </td>
+  </tr>`).join('');
+
+  // Mantener foco en el campo de búsqueda
+  const searchField = document.getElementById('alumno-search-field');
+  if(searchField && document.activeElement === searchField){
+    const pos = searchField.selectionStart;
+    setTimeout(()=>{ searchField.focus(); searchField.setSelectionRange(pos,pos); },0);
+  }
+}
+
 function renderAlumnos(){
   let data = state.alumnos.filter(a=>a.periodo===state.currentPeriodo);
   const f = state.filters;
@@ -1440,7 +1517,7 @@ function renderAlumnos(){
     </div>
     <div class="filters">
       <input class="filter-input search" placeholder="🔍 Buscar nombre, RUT, apoderado..." 
-        value="${esc(f.buscar)}" oninput="state.filters.buscar=this.value;state.page=1;renderAlumnos()">
+        value="${esc(f.buscar)}" id="alumno-search-field" oninput="buscarAlumnosInput(this.value)">
       <span class="chip all ${!f.sala?'active':''}" onclick="state.filters.sala='';state.page=1;renderAlumnos()">Todas</span>
       ${['VERDE','ROJA','AZUL','AMARILLA'].map(s=>`
         <span class="chip ${s} ${f.sala===s?'active':''}" onclick="state.filters.sala='${s}';state.page=1;renderAlumnos()">${s}</span>
@@ -1458,7 +1535,7 @@ function renderAlumnos(){
       </select>
       ${canEdit()?`<button class="btn btn-primary btn-sm" onclick="openAlumnoModal(null)">➕ Nuevo</button>`:''}
       <button class="btn btn-outline btn-sm" onclick="exportAlumnosExcel()">📥 Exportar</button>
-      <span style="margin-left:auto;font-size:.75rem;color:var(--text3)">${total} alumno${total!==1?'s':''}</span>
+      <span id="alumno-counter" style="margin-left:auto;font-size:.75rem;color:var(--text3)">${total} alumno${total!==1?'s':''}</span>
     </div>
     <div class="table-card">
       <div class="table-wrap">
@@ -1470,7 +1547,7 @@ function renderAlumnos(){
               <th>Edad</th><th>Mamá/Apoderada</th><th>Celular</th><th>Estado</th><th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="alumnos-tbody">
             ${paged.length===0?`<tr><td colspan="10"><div class="empty-state"><span class="es-icon">👤</span><p>Sin alumnos</p></div></td></tr>`:
             paged.map((a,i)=>`<tr ondblclick="openResumenAlumno(${a.id})" style="cursor:pointer" title="Doble clic para ver resumen completo">
               ${state._bulkMode
