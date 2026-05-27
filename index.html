@@ -1409,52 +1409,74 @@ function confirmarBorradoMasivo(){
 
 
 function buscarAlumnosInput(val){
-  state.filters.buscar=val;state.page=1;renderTablaAlumnos();
+  state.filters.buscar = val;
+  state.page = 1;
+  renderTablaAlumnos();
 }
+
 function renderTablaAlumnos(){
-  const f=state.filters;
-  let data=state.alumnos.filter(a=>a.periodo===state.currentPeriodo);
-  if(f.sala)data=data.filter(a=>a.sala===f.sala);
-  if(f.situacion)data=data.filter(a=>a.situacion===f.situacion);
-  if(f.jornada)data=data.filter(a=>a.jornada===f.jornada);
+  var f = state.filters;
+  var data = state.alumnos.filter(function(a){return a.periodo===state.currentPeriodo;});
+  if(f.sala) data = data.filter(function(a){return a.sala===f.sala;});
+  if(f.situacion) data = data.filter(function(a){return a.situacion===f.situacion;});
+  if(f.jornada) data = data.filter(function(a){return a.jornada===f.jornada;});
   if(f.buscar){
-    const q=f.buscar.toLowerCase();
-    data=data.filter(a=>a.nombre.toLowerCase().includes(q)||(a.rut||'').includes(q)||
-      (a.mama||'').toLowerCase().includes(q)||(a.papa||'').toLowerCase().includes(q)||
-      (a.mailMama||'').toLowerCase().includes(q));
+    var q = f.buscar.toLowerCase();
+    data = data.filter(function(a){
+      return a.nombre.toLowerCase().includes(q) ||
+        (a.rut||'').includes(q) ||
+        (a.mama||'').toLowerCase().includes(q) ||
+        (a.papa||'').toLowerCase().includes(q) ||
+        (a.mailMama||'').toLowerCase().includes(q);
+    });
   }
-  const total=data.length;
-  const paged=data.slice((state.page-1)*state.PER_PAGE,state.page*state.PER_PAGE);
-  const counter=document.getElementById('alumno-counter');
-  if(counter)counter.textContent=total+' alumno'+(total!==1?'s':'');
-  const tbody=document.getElementById('alumnos-tbody');
-  if(!tbody){renderAlumnos();return;}
+  var total = data.length;
+  var paged = data.slice((state.page-1)*state.PER_PAGE, state.page*state.PER_PAGE);
+  var counter = document.getElementById('alumno-counter');
+  if(counter) counter.textContent = total+' alumno'+(total!==1?'s':'');
+  var tbody = document.getElementById('alumnos-tbody');
+  if(!tbody){ renderAlumnos(); return; }
   if(paged.length===0){
-    tbody.innerHTML='<tr><td colspan="10"><div class="empty-state"><span class="es-icon">👤</span><p>Sin alumnos</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><span class="es-icon">&#128100;</span><p>Sin alumnos</p></div></td></tr>';
     return;
   }
-  tbody.innerHTML=paged.map((a,i)=>`<tr ondblclick="openResumenAlumno(${a.id})" style="cursor:pointer">
-    ${state._bulkMode?'<td style="text-align:center"><input type="checkbox" class="bulk-chk" data-id="'+a.id+'" onchange="updateBulkCount()" style="width:14px;height:14px;cursor:pointer;accent-color:#dc2626"></td>':
-    '<td style="color:var(--text3)">'+(((state.page-1)*state.PER_PAGE+i+1))+'</td>'}
-    <td><strong style="cursor:pointer;color:var(--accent)" onclick="openDetalle(${a.id})">${esc(a.nombre)}</strong>
-    <div style="font-size:.68rem;color:var(--text3)">${a.genero==='FEMENINO'?'👧':'👦'} ${a.genero}</div></td>
-    <td style="font-size:.75rem;font-family:monospace;color:var(--text2)">${esc(a.rut||'—')}</td>
-    <td>${salaBadge(a.sala)}</td>
-    <td><span style="font-size:.75rem;color:var(--text2)">${a.jornada||'—'}</span></td>
-    <td style="font-size:.75rem;color:var(--text3)">${calcEdad(a.fechaNac)}</td>
-    <td><div style="font-size:.8rem">${esc(a.mama||'—')}</div>
-    <div style="font-size:.68rem;color:var(--text3)">${esc(a.mailMama||'')}</div></td>
-    <td style="font-size:.77rem;color:var(--text2)">${esc(a.celMama||'—')}</td>
-    <td>${statusBadge(a.situacion)}</td>
-    <td><div style="display:flex;gap:4px;">
-      <button class="btn btn-ghost btn-sm" onclick="openDetalle(${a.id})">👁</button>
-      ${canEdit()?`<button class="btn btn-ghost btn-sm" onclick="openAlumnoModal(${a.id})">✏️</button>
-      <button class="btn btn-ghost btn-sm" onclick="openPagoModal(${a.id})">💰</button>
-      <button class="btn btn-danger btn-sm" onclick="askDelete('alumno',${a.id})">🗑</button>`:''}
-    </div></td>
-  </tr>`).join('');
-  const sf=document.getElementById('alumno-search-field');
-  if(sf&&document.activeElement===sf){const p=sf.selectionStart;setTimeout(()=>{sf.focus();sf.setSelectionRange(p,p);},0);}
+  var html = '';
+  for(var i=0; i<paged.length; i++){
+    var a = paged[i];
+    var num = (state.page-1)*state.PER_PAGE+i+1;
+    var numCol = state._bulkMode
+      ? '<td style="text-align:center"><input type="checkbox" class="bulk-chk" data-id="'+a.id+'" onchange="updateBulkCount()" style="width:14px;height:14px;cursor:pointer;accent-color:#dc2626"></td>'
+      : '<td style="color:var(--text3)">'+num+'</td>';
+    var acciones = '';
+    if(canEdit()){
+      acciones = '<button class="btn btn-ghost btn-sm" onclick="openAlumnoModal('+a.id+')" title="Editar">&#9999;&#65039;</button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="openPagoModal('+a.id+')" title="Registrar pago">&#128176;</button>'
+        + '<button class="btn btn-danger btn-sm" onclick="askDelete(&quot;alumno&quot;,'+a.id+')">&#128465;</button>';
+    }
+    html += '<tr ondblclick="openResumenAlumno('+a.id+')" style="cursor:pointer" title="Doble clic">'
+      + numCol
+      + '<td><strong style="cursor:pointer;color:var(--accent)" onclick="openDetalle('+a.id+')">'+esc(a.nombre)+'</strong>'
+      + '<div style="font-size:.68rem;color:var(--text3)">'+(a.genero==='FEMENINO'?'&#128103;':'&#128102;')+' '+a.genero+'</div></td>'
+      + '<td style="font-size:.75rem;font-family:monospace;color:var(--text2)">'+esc(a.rut||'—')+'</td>'
+      + '<td>'+salaBadge(a.sala)+'</td>'
+      + '<td><span style="font-size:.75rem;color:var(--text2)">'+(a.jornada||'—')+'</span></td>'
+      + '<td style="font-size:.75rem;color:var(--text3)">'+calcEdad(a.fechaNac)+'</td>'
+      + '<td><div style="font-size:.8rem">'+esc(a.mama||'—')+'</div>'
+      + '<div style="font-size:.68rem;color:var(--text3)">'+esc(a.mailMama||'')+'</div></td>'
+      + '<td style="font-size:.77rem;color:var(--text2)">'+esc(a.celMama||'—')+'</td>'
+      + '<td>'+statusBadge(a.situacion)+'</td>'
+      + '<td><div style="display:flex;gap:4px;">'
+      + '<button class="btn btn-ghost btn-sm" onclick="openDetalle('+a.id+')" title="Ver detalle">&#128065;</button>'
+      + acciones
+      + '</div></td>'
+      + '</tr>';
+  }
+  tbody.innerHTML = html;
+  var sf = document.getElementById('alumno-search-field');
+  if(sf && document.activeElement === sf){
+    var pos = sf.selectionStart;
+    setTimeout(function(){ sf.focus(); sf.setSelectionRange(pos,pos); }, 0);
+  }
 }
 
 function renderAlumnos(){
@@ -1501,6 +1523,8 @@ function renderAlumnos(){
         <option value="MAÑANA">Mañana</option>
         <option value="INTERMEDIA">Intermedia</option>
         <option value="EXTENDIDA">Extendida</option>
+        <option value="COMPLETA">Completa</option>
+        <option value="AFTER">After</option>
       </select>
       ${canEdit()?`<button class="btn btn-primary btn-sm" onclick="openAlumnoModal(null)">➕ Nuevo</button>`:''}
       <button class="btn btn-outline btn-sm" onclick="exportAlumnosExcel()">📥 Exportar</button>
@@ -1539,11 +1563,11 @@ function renderAlumnos(){
               <td>
                 <div style="display:flex;gap:4px;">
                   <button class="btn btn-ghost btn-sm" onclick="openDetalle(${a.id})" title="Ver detalle">👁</button>
-                  ${canEdit()?`
-                    <button class="btn btn-ghost btn-sm" onclick="openAlumnoModal(${a.id})" title="Editar">✏️</button>
-                    <button class="btn btn-ghost btn-sm" onclick="openPagoModal(${a.id})" title="Registrar pago">💰</button>
-                    <button class="btn btn-danger btn-sm" onclick="askDelete('alumno',${a.id})">🗑</button>
-                  `:''}
+                  ${canEdit()?
+                    '<button class="btn btn-ghost btn-sm" onclick="openAlumnoModal('+a.id+')" title="Editar">✏️</button>'
+                    +'<button class="btn btn-ghost btn-sm" onclick="openPagoModal('+a.id+')" title="Registrar pago">💰</button>'
+                    +'<button class="btn btn-danger btn-sm" onclick="askDelete(\'alumno\','+a.id+')">🗑</button>'
+                  :''}
                 </div>
               </td>
             </tr>`).join('')}
@@ -1635,6 +1659,8 @@ function buildAlumnoForm(a){
         <option value="MAÑANA" ${a.jornada==='MAÑANA'?'selected':''}>Mañana</option>
         <option value="INTERMEDIA" ${a.jornada==='INTERMEDIA'?'selected':''}>Intermedia</option>
         <option value="EXTENDIDA" ${a.jornada==='EXTENDIDA'?'selected':''}>Extendida</option>
+        <option value="COMPLETA" ${a.jornada==='COMPLETA'?'selected':''}>Completa</option>
+        <option value="AFTER" ${a.jornada==='AFTER'?'selected':''}>After</option>
       </select>
     </div>
     <div class="form-group">
@@ -1826,6 +1852,8 @@ function buildAlumnoFormStandalone(a){
         <option value="MAÑANA" ${a.jornada==='MAÑANA'?'selected':''}>Mañana</option>
         <option value="INTERMEDIA" ${a.jornada==='INTERMEDIA'?'selected':''}>Intermedia</option>
         <option value="EXTENDIDA" ${a.jornada==='EXTENDIDA'?'selected':''}>Extendida</option>
+        <option value="COMPLETA" ${a.jornada==='COMPLETA'?'selected':''}>Completa</option>
+        <option value="AFTER" ${a.jornada==='AFTER'?'selected':''}>After</option>
       </select>
     </div>
     <div class="form-group">
@@ -3191,7 +3219,6 @@ function renderResumen(){
       return {dot:'white', monto:0, title:'Sin pago en este bimestre'};
 
     } else {
-      // Matrícula: verde si hay al menos 1 bimestre pagado
       if(colKey === 'MATRICULA'){
         const bimestres = ['1 BIMESTRE (Marzo - Abril)','2 BIMESTRE (Mayo - Junio)',
           '3 BIMESTRE (Julio - Agosto)','4 BIMESTRE (Septiembre - Octubre)',
@@ -3204,12 +3231,10 @@ function renderResumen(){
         if(tieneBimestre) return {dot:'green', monto:0, title:'Matrícula incluida en pago bimestral'};
         return {dot:'red', monto:0, title:'Sin pago'};
       }
-      // Month column: first check if parent bimestre was paid
       const parentBim = MONTH_TO_BIM[colKey];
       if(parentBim && ap[parentBim]){
         return {dot:'white', monto:0, title:'Incluido en bimestre pagado'};
       }
-      // Bimestre NOT paid — show month status
       const paid = ap[colKey];
       if(paid){
         if(paid.comentario) return {dot:'yellow', monto:paid.monto, title:fmtMoney(paid.monto)+' | '+paid.comentario};
@@ -4266,7 +4291,7 @@ function renderImportTab(type){
     ['GÉNERO','MASCULINO o FEMENINO',''],
     ['FECHA NACIMIENTO','Formato DD/MM/AAAA o AAAA-MM-DD',''],
     ['SUB-NIVEL','VERDE, ROJA, AZUL o AMARILLA',''],
-    ['JORNADA','MAÑANA, INTERMEDIA o EXTENDIDA',''],
+    ['JORNADA','MAÑANA, INTERMEDIA, EXTENDIDA, COMPLETA o AFTER',''],
     ['FECHA MATRÍCULA','Fecha de ingreso al jardín',''],
     ['DOMICILIO','Dirección completa',''],
     ['NOMBRE MADRE','Nombre de la mamá o apoderada',''],
