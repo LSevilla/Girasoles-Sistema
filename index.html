@@ -3689,7 +3689,10 @@ function calcularEstadoCobranza(alumnoId, periodo){
   paidMonths.forEach(m=>{ coveredThrough = Math.max(coveredThrough, MONTH_NUM[m]||0); });
 
   // ── 5. AL DÍA check: covered through >= current month ──
-  const alDia = coveredThrough >= hoyMes && pagados.has('MATRICULA');
+  // Matrícula incluida si hay al menos 1 bimestre pagado
+  const matriculaIncluida = paidBim.length > 0;
+  const matriculaPagada   = pagados.has('MATRICULA') || matriculaIncluida;
+  const alDia = coveredThrough >= hoyMes && matriculaPagada;
 
   // ── 6. Build concept rows ──
   const LABEL = CONCEPTO_LABEL_COB;
@@ -3707,6 +3710,12 @@ function calcularEstadoCobranza(alumnoId, periodo){
     if(pagados.has(c)){
       const p = pm[c];
       return {c, label:lbl, estado:'pagado', monto:p.monto, fecha:p.fecha, boleta:p.boleta, banco:p.banco, obs:p.obs};
+    }
+
+    // MATRICULA cubierta por pago bimestral (incluida en el valor del bimestre)
+    if(c==='MATRICULA' && paidBim.length > 0){
+      const primerBimRef = pm[paidBim[0]];
+      return {c, label:lbl, estado:'cubierto', monto:0, fecha:primerBimRef?.fecha||'', boleta:'', banco:'', obs:'Incluida en pago bimestral'};
     }
 
     // Month covered by paid parent bimestre?
@@ -3812,6 +3821,8 @@ function renderCobranza(){
   const rows = alumnos.map(a=>{
     const conceptRows = calcularEstadoCobranza(a.id, periodo);
     const pendientes  = conceptRows.filter(r=>r.estado==='pendiente'||r.estado==='parcial');
+  // totalPagado incluye pagados directos (cubierto tiene monto=0 por diseño)
+  // Los pagos reales se muestran en la sección de historial
     const pagadoTotal = conceptRows.filter(r=>r.estado==='pagado').reduce((s,r)=>s+r.monto,0);
     return {a, conceptRows, pendientes, pagadoTotal};
   });
@@ -4011,6 +4022,8 @@ function buildEstadoCuenta(alumnoId){
   // Use shared logic with date cutoff
   const conceptRows = calcularEstadoCobranza(alumnoId, periodo);
   const pendientes  = conceptRows.filter(r=>r.estado==='pendiente'||r.estado==='parcial');
+  // totalPagado incluye pagados directos (cubierto tiene monto=0 por diseño)
+  // Los pagos reales se muestran en la sección de historial
   const totalPagado = conceptRows.filter(r=>r.estado==='pagado').reduce((s,r)=>s+r.monto,0);
 
   // All pagos for this alumno in this period (for the history section)
@@ -4031,7 +4044,7 @@ function abrirEstadoCuenta(alumnoId){
 
   const ESTADO_COLOR = {pagado:'#059669',bimestre:'#6b7280',pendiente:'#dc2626'};
   const ESTADO_BG    = {pagado:'#f0fdf4',bimestre:'#f8faff',pendiente:'#fef2f2'};
-  const ESTADO_LABEL = {pagado:'✅ Pagado',bimestre:'— (incluido)',pendiente:'❌ Pendiente'};
+  const ESTADO_LABEL = {pagado:'✅ Pagado',cubierto:'— (cubierto)',pendiente:'❌ Pendiente',parcial:'⚠️ Parcial',no_aplica:''};
 
   const html = `
     <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
@@ -4060,7 +4073,9 @@ function abrirEstadoCuenta(alumnoId){
       .pagado{background:#f0fdf4;color:#059669;font-weight:600}
       .pendiente{background:#fef2f2;color:#dc2626;font-weight:600}
       .bimestre{color:#6b7280;font-style:italic}
+      .cubierto{color:#6b7280;font-style:italic}
       .futuro{color:#9ca3af;font-style:italic}
+      .no_aplica{color:#cbd5e1;font-style:italic}
       .total-row{background:#eef2ff;font-weight:700;border-top:2px solid #2c4a7c}
       .pendientes-box{background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:10px 12px;margin-bottom:14px}
       .pendientes-box h3{color:#991b1b;font-size:9pt;font-weight:700;margin-bottom:6px}
@@ -4114,10 +4129,10 @@ function abrirEstadoCuenta(alumnoId){
         <th>Concepto</th><th>Estado</th><th>Monto</th><th>Fecha pago</th><th>N° Boleta</th><th>Banco</th><th>Observación</th>
       </tr></thead>
       <tbody>
-        ${conceptRows.filter(r=>r.estado!=='futuro').map(r=>`
-          <tr class="${r.estado==='cubierto'||r.estado==='futuro'?'bimestre':r.estado}">
+        ${conceptRows.filter(r=>r.estado!=='futuro'&&r.estado!=='no_aplica').map(r=>`
+          <tr class="${r.estado==='cubierto'?'cubierto':r.estado==='futuro'?'futuro':r.estado}">
             <td style="font-weight:600">${r.label}</td>
-            <td>${{pagado:'✅ Pagado',cubierto:'— (cubierto)',pendiente:'❌ Pendiente',parcial:'⚠️ Parcial',futuro:''}[r.estado]||r.estado}</td>
+            <td>${{pagado:'✅ Pagado',cubierto:'— (cubierto)',pendiente:'❌ Pendiente',parcial:'⚠️ Parcial',futuro:'',no_aplica:''}[r.estado]||r.estado}</td>
             <td>${r.monto>0?fmtMoney(r.monto):'—'}</td>
             <td>${r.fecha?fmtDate(r.fecha):'—'}</td>
             <td style="font-family:monospace">${r.boleta||'—'}</td>
@@ -4150,7 +4165,7 @@ function copiarEstadoCuentaTexto(alumnoId){
   if(!data) return;
   const {a, periodo, hoy, conceptRows, totalPagado, pendientes, pagos, apoderado, celApoderado} = data;
 
-  const ESTADO_LABEL = {pagado:'✅ Pagado',cubierto:'  (cubierto)',pendiente:'❌ Pendiente',parcial:'⚠️ Parcial',futuro:''};
+  const ESTADO_LABEL = {pagado:'✅ Pagado',cubierto:'  (cubierto)',pendiente:'❌ Pendiente',parcial:'⚠️ Parcial',futuro:'',no_aplica:'  (no aplica)'};
   const lineas = [
     `ESTADO DE CUENTA — JARDÍN INFANTIL GIRASOLES DE CHICUREO`,
     `Corte al ${hoy} · Periodo ${periodo}`,
@@ -4162,7 +4177,7 @@ function copiarEstadoCuentaTexto(alumnoId){
     `ESTADO DE PAGOS:`,
     `${'─'.repeat(60)}`,
   ];
-  conceptRows.filter(r=>r.estado!=='futuro').forEach(r=>{
+  conceptRows.filter(r=>r.estado!=='futuro'&&r.estado!=='no_aplica').forEach(r=>{
     const monto = r.monto>0 ? fmtMoney(r.monto).padStart(14) : '              ';
     lineas.push(`${r.label.padEnd(36)} ${ESTADO_LABEL[r.estado]}${r.monto>0?' '+fmtMoney(r.monto):''}`);
   });
