@@ -6140,11 +6140,6 @@ function openResumenAlumno(alumnoId){
           ...BIMESTRES.map((b,i)=>({key:b, label:`${i+1}° Bimestre`, icon:'📆'})),
           {key:'CAMPAMENTO DE VERANO', label:'Camp. Verano', icon:'🏕'},
         ].map(item=>{
-          const tieneBimestral = ['1 BIMESTRE (Marzo - Abril)','2 BIMESTRE (Mayo - Junio)',
-            '3 BIMESTRE (Julio - Agosto)','4 BIMESTRE (Septiembre - Octubre)',
-            '5 BIMESTRE (Noviembre - Diciembre)'].some(b=>conceptosPagados.has(b));
-          const paid = conceptosPagados.has(item.key)||(item.key==='MATRICULA'&&tieneBimestral);
-          // Check if monthly payments cover this bimestre
           const BIM_MESES_MAP = {
             '1 BIMESTRE (Marzo - Abril)':['MARZO','ABRIL'],
             '2 BIMESTRE (Mayo - Junio)':['MAYO','JUNIO'],
@@ -6153,16 +6148,55 @@ function openResumenAlumno(alumnoId){
             '5 BIMESTRE (Noviembre - Diciembre)':['NOVIEMBRE','DICIEMBRE'],
           };
           const months = BIM_MESES_MAP[item.key]||[];
+
+          // Usar calcularEstadoCobranza para consistencia con fecha de matrícula
+          const _conceptRows = calcularEstadoCobranza(alumnoId, state.currentPeriodo);
+          const _conceptRow  = _conceptRows.find(r=>r.c===item.key);
+
+          // Detectar si no aplica por fecha de matrícula
+          const _noAplica = (() => {
+            const fm = a?.fechaMatricula;
+            if(!fm) return false;
+            const mD=new Date(fm+'T00:00:00');
+            const mMes=mD.getMonth()+1, mDia=mD.getDate(), mAnio=mD.getFullYear();
+            const pN=parseInt(state.currentPeriodo);
+            if(mAnio<pN) return false;
+            if(mAnio>pN) return true;
+            if(item.key==='MATRICULA'||item.key==='CAMPAMENTO DE VERANO') return false;
+            if(item.key.includes('BIMESTRE')){
+              const BS={'1 BIMESTRE (Marzo - Abril)':3,'2 BIMESTRE (Mayo - Junio)':5,
+                '3 BIMESTRE (Julio - Agosto)':7,'4 BIMESTRE (Septiembre - Octubre)':9,
+                '5 BIMESTRE (Noviembre - Diciembre)':11};
+              const BE={'1 BIMESTRE (Marzo - Abril)':4,'2 BIMESTRE (Mayo - Junio)':6,
+                '3 BIMESTRE (Julio - Agosto)':8,'4 BIMESTRE (Septiembre - Octubre)':10,
+                '5 BIMESTRE (Noviembre - Diciembre)':12};
+              const bi=BS[item.key]||0, bf=BE[item.key]||0;
+              if(mMes<bi) return false;
+              if(mMes===bi&&mDia===1) return false;
+              return mMes<=bf;
+            }
+            const MN={MARZO:3,ABRIL:4,MAYO:5,JUNIO:6,JULIO:7,AGOSTO:8,
+              SEPTIEMBRE:9,OCTUBRE:10,NOVIEMBRE:11,DICIEMBRE:12};
+            return (MN[item.key]||0) < mMes;
+          })();
+
+          const tieneBimestralPagado = BIMESTRES.some(b=>conceptosPagados.has(b));
+          const estado = _noAplica ? 'no_aplica' : (_conceptRow?.estado || 'futuro');
           const monthsPaid = months.filter(m=>conceptosPagados.has(m));
-          const fullyPaid = paid || (months.length>0 && monthsPaid.length===months.length);
-          const partialPaid = !paid && months.length>0 && monthsPaid.length>0;
-          const pagoRef = pagosActuales.filter(p=>p.mensualidad===item.key||months.includes(p.mensualidad));
+
+          const fullyPaid   = estado==='pagado'||estado==='cubierto'
+                              ||(item.key==='MATRICULA'&&tieneBimestralPagado);
+          const partialPaid = estado==='parcial';
+          const noAplicaFinal = estado==='no_aplica';
+
+          const pagoRef  = pagosActuales.filter(p=>p.mensualidad===item.key||months.includes(p.mensualidad));
           const montoRef = pagoRef.reduce((s,p)=>s+Number(p.monto),0);
-          const color = fullyPaid?'#059669':partialPaid?'#d97706':'#dc2626';
-          const bg    = fullyPaid?'#f0fdf4':partialPaid?'#fefce8':'#fef2f2';
-          const border= fullyPaid?'#a7f3d0':partialPaid?'#fde68a':'#fecaca';
-          const icon  = fullyPaid?'✅':partialPaid?'⚠️':'❌';
-          const status= fullyPaid?'Pagado':partialPaid?`${monthsPaid.length}/${months.length} meses`:'Sin pago';
+
+          const color  = noAplicaFinal?'#94A3B8':fullyPaid?'#059669':partialPaid?'#d97706':'#dc2626';
+          const bg     = noAplicaFinal?'#F8FAFC':fullyPaid?'#f0fdf4':partialPaid?'#fefce8':'#fef2f2';
+          const border = noAplicaFinal?'#E2E8F0':fullyPaid?'#a7f3d0':partialPaid?'#fde68a':'#fecaca';
+          const icon   = noAplicaFinal?'—':fullyPaid?'✅':partialPaid?'⚠️':'❌';
+          const status = noAplicaFinal?'No aplica':fullyPaid?'Pagado':partialPaid?`${monthsPaid.length}/${months.length} meses`:'Sin pago';
           return `<div style="background:${bg};border:1px solid ${border};border-radius:7px;padding:8px 10px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
               <span style="font-size:.7rem;font-weight:700;color:${color}">${item.label}</span>
