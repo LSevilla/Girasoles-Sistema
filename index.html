@@ -3365,7 +3365,37 @@ function renderResumen(){
                 <td style="position:sticky;left:0;z-index:2;background:${rowBg};padding:6px 12px;min-width:180px;border-right:2px solid var(--border);font-size:.78rem;font-weight:600;cursor:pointer" ondblclick="openResumenAlumno(${a.id})" title="Doble clic para ver resumen">${esc(a.nombre)}</td>
                 ${rSala==='TODAS'?`<td style="position:sticky;left:180px;z-index:2;background:${rowBg};padding:4px 8px;min-width:70px;text-align:center;border-right:1px solid var(--border)">${salaBadge(a.sala)}</td>`:''}
                 ${COLUMNAS.map(col=>{
-                  const cell = getCellInfo(a.id, col.key);
+                  // Verificar noAplica según fechaMatricula
+                  const _aRM = state.alumnos.find(x=>x.id===a.id);
+                  const _naRM = (()=>{
+                    const fm=_aRM?.fechaMatricula;
+                    if(!fm) return false;
+                    const d=new Date(fm+'T00:00:00'),mm=d.getMonth()+1,md=d.getDate(),ma=d.getFullYear();
+                    const pN=parseInt(rAnio);
+                    if(ma<pN) return false;
+                    if(ma>pN) return true;
+                    const ck=col.key;
+                    if(ck==='MATRICULA'||ck==='CAMPAMENTO DE VERANO') return false;
+                    const BS={'1 BIMESTRE (Marzo - Abril)':3,'2 BIMESTRE (Mayo - Junio)':5,
+                      '3 BIMESTRE (Julio - Agosto)':7,'4 BIMESTRE (Septiembre - Octubre)':9,
+                      '5 BIMESTRE (Noviembre - Diciembre)':11};
+                    const BE={'1 BIMESTRE (Marzo - Abril)':4,'2 BIMESTRE (Mayo - Junio)':6,
+                      '3 BIMESTRE (Julio - Agosto)':8,'4 BIMESTRE (Septiembre - Octubre)':10,
+                      '5 BIMESTRE (Noviembre - Diciembre)':12};
+                    if(ck.includes('BIMESTRE')){
+                      const bi=BS[ck]||0,bf=BE[ck]||0;
+                      if(mm>bf) return true;
+                      if(mm<bi) return false;
+                      if(mm===bi&&md===1) return false;
+                      return true;
+                    }
+                    const MN={MARZO:3,ABRIL:4,MAYO:5,JUNIO:6,JULIO:7,AGOSTO:8,
+                      SEPTIEMBRE:9,OCTUBRE:10,NOVIEMBRE:11,DICIEMBRE:12};
+                    return (MN[ck]||0)<mm;
+                  })();
+                  const cell = _naRM
+                    ? {dot:'gray', title:'No aplica — anterior a fecha de ingreso', monto:0}
+                    : getCellInfo(a.id, col.key);
                   return `<td style="text-align:center;padding:5px 4px;border-right:1px solid #f0f4ff;min-width:${col.tipo==='bimestre'?56:44}px">
                     ${dotHTML(cell.dot, cell.title, cell.monto)}
                   </td>`;
@@ -3626,11 +3656,14 @@ function calcularEstadoCobranza(alumnoId, periodo){
       // Y solo si ingresó al inicio exacto (día 1 del mes inicial)
       if(matAnio < parseInt(y)) return true;
       if(matAnio > parseInt(y)) return false;
-      // Mismo año: aplica si ingresó antes o en el inicio del bimestre
-      if(matMes < bimMesInicio) return true; // ingresó antes del bimestre
-      if(matMes === bimMesInicio && matDia === 1) return true; // inicio exacto
-      if(matMes <= bimMesFin && !esInicioBimestre) return false; // mitad → no aplica bimestre
-      return matMes <= bimMesInicio; // después del bimestre → no aplica
+      // Bimestre terminó ANTES del ingreso → no aplica
+      if(matMes > bimMesFin) return false;
+      // Ingresó antes del bimestre → aplica
+      if(matMes < bimMesInicio) return true;
+      // Ingresó exactamente al inicio → puede pagar bimestral o mensual
+      if(matMes === bimMesInicio && matDia === 1) return true;
+      // Ingresó a mitad del bimestre → no aplica bimestre (solo mensual)
+      return false;
     }
 
     // Mes individual
@@ -6171,9 +6204,14 @@ function openResumenAlumno(alumnoId){
                 '3 BIMESTRE (Julio - Agosto)':8,'4 BIMESTRE (Septiembre - Octubre)':10,
                 '5 BIMESTRE (Noviembre - Diciembre)':12};
               const bi=BS[item.key]||0, bf=BE[item.key]||0;
+              // Bimestre terminó antes del ingreso → no aplica
+              if(mMes>bf) return true;
+              // Ingresó antes del bimestre → aplica
               if(mMes<bi) return false;
+              // Inicio exacto → aplica
               if(mMes===bi&&mDia===1) return false;
-              return mMes<=bf;
+              // Mitad del bimestre → no aplica bimestre
+              return true;
             }
             const MN={MARZO:3,ABRIL:4,MAYO:5,JUNIO:6,JULIO:7,AGOSTO:8,
               SEPTIEMBRE:9,OCTUBRE:10,NOVIEMBRE:11,DICIEMBRE:12};
@@ -6181,13 +6219,24 @@ function openResumenAlumno(alumnoId){
           })();
 
           const tieneBimestralPagado = BIMESTRES.some(b=>conceptosPagados.has(b));
-          const estado = _noAplica ? 'no_aplica' : (_conceptRow?.estado || 'futuro');
+          // Determinar estado con lógica correcta
           const monthsPaid = months.filter(m=>conceptosPagados.has(m));
+          const allMonthsPaid = months.length > 0 && monthsPaid.length === months.length;
+          const someMonthsPaid = months.length > 0 && monthsPaid.length > 0 && !allMonthsPaid;
 
-          const fullyPaid   = estado==='pagado'||estado==='cubierto'
-                              ||(item.key==='MATRICULA'&&tieneBimestralPagado);
-          const partialPaid = estado==='parcial';
+          const tieneBimestralPagado2 = BIMESTRES.some(b=>conceptosPagados.has(b));
+          const estadoBase = _noAplica ? 'no_aplica'
+            : _conceptRow ? _conceptRow.estado
+            : conceptosPagados.has(item.key) ? 'pagado'
+            : allMonthsPaid ? 'cubierto'
+            : someMonthsPaid ? 'parcial'
+            : (item.key==='MATRICULA' && tieneBimestralPagado2) ? 'cubierto'
+            : 'pendiente';
+
+          const estado = estadoBase;
           const noAplicaFinal = estado==='no_aplica';
+          const fullyPaid   = estado==='pagado'||estado==='cubierto';
+          const partialPaid = estado==='parcial';
 
           const pagoRef  = pagosActuales.filter(p=>p.mensualidad===item.key||months.includes(p.mensualidad));
           const montoRef = pagoRef.reduce((s,p)=>s+Number(p.monto),0);
