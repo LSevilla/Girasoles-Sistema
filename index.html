@@ -129,34 +129,28 @@ a{color:var(--accent);text-decoration:none;}
 .page-content{padding:24px 28px;flex:1;}
 
 /* ── MODO IMPRESIÓN ── */
-body.print-mode .main { overflow:hidden; height:100vh; }
-body.print-mode .page-content { 
-  padding:0 !important; 
-  overflow:hidden !important;
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
-body.print-mode .print-layout {
+.print-layout {
   display:grid;
   grid-template-columns:290px 1fr;
-  height:100%;
-  overflow:hidden;
+  gap:0;
+  align-items:start;
 }
-body.print-mode .print-panel-config {
+.print-panel-config {
+  position:sticky;
+  top:0;
+  height:100vh;
   overflow-y:auto;
-  height:100%;
   padding:16px;
   border-right:1px solid var(--border);
   background:var(--surface);
   display:flex;
   flex-direction:column;
   gap:12px;
+  box-sizing:border-box;
 }
-body.print-mode .print-panel-preview {
-  overflow-y:auto;
-  height:100%;
+.print-panel-preview {
   padding:16px;
+  min-height:100vh;
 }
 
 /* ── CARDS ── */
@@ -1340,10 +1334,6 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{
 });
 
 function setContent(html){
-  // Remover modo impresión al cambiar de módulo
-  if(!html.includes('print-layout')){
-    document.body.classList.remove('print-mode');
-  }
   document.getElementById('page-content').innerHTML = html;
 }
 
@@ -5866,10 +5856,8 @@ function renderImpresion(){
   });
   const campos = getPrintCampos();
 
-  // Activar modo impresión
-  document.body.classList.add('print-mode');
-
   setContent(`
+    <div style="margin:-24px -28px">
     <div class="print-layout">
 
       <!-- ── PANEL CONFIG ── -->
@@ -5965,6 +5953,7 @@ function renderImpresion(){
       </div>
       </div>
 
+    </div>
     </div>
   `);
 }
