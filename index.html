@@ -4159,6 +4159,8 @@ function abrirEstadoCuenta(alumnoId){
         <div class="info-row"><span class="info-label">Sala</span><span class="info-val">${a.sala||'—'}</span></div>
         <div class="info-row"><span class="info-label">Jornada</span><span class="info-val">${a.jornada||'—'}</span></div>
         <div class="info-row"><span class="info-label">Fecha Nac.</span><span class="info-val">${fmtDate(a.fechaNac)}</span></div>
+        ${a.fechaIngreso?`<div class="info-row"><span class="info-label">Fecha Ingreso</span><span class="info-val">${fmtDate(a.fechaIngreso)}</span></div>`:''}
+        ${a.fechaRetiro?`<div class="info-row"><span class="info-label" style="color:#dc2626">Fecha Retiro</span><span class="info-val" style="color:#dc2626">${fmtDate(a.fechaRetiro)}</span></div>`:''}
       </div>
       <div class="info-box">
         <h3>👨‍👩‍👧 Apoderado</h3>
@@ -5799,8 +5801,11 @@ const PRINT_FIELDS = [
   {key:'mailPapa',      label:'Email papá',           default:false},
   {key:'domicilio',     label:'Dirección',            default:true},
   {key:'fechaMatricula',label:'Fecha matrícula',      default:false},
+  {key:'fechaIngreso',  label:'Fecha de ingreso',     default:false},
+  {key:'fechaRetiro',   label:'Fecha de retiro',      default:false},
   {key:'situacion',     label:'Situación',            default:false},
   {key:'observaciones', label:'Observaciones',        default:false},
+  {key:'campamento',    label:'Campamento Verano',    default:false},
 ];
 
 let printState = {
@@ -5961,9 +5966,13 @@ function getFechaYear(p){
 }
 
 function getFieldValue(a, key){
-  if(key==='edad')         return calcEdad(a.fechaNac)||'—';
-  if(key==='fechaNac')     return fmtDate(a.fechaNac)||'—';
-  if(key==='fechaMatricula') return fmtDate(a.fechaMatricula)||'—';
+  if(key==='edad')          return calcEdad(a.fechaNac)||'—';
+  if(key==='fechaNac')      return fmtDate(a.fechaNac)||'—';
+  if(key==='fechaMatricula')return fmtDate(a.fechaMatricula)||'—';
+  if(key==='fechaIngreso')  return fmtDate(a.fechaIngreso)||'—';
+  if(key==='fechaRetiro')   return fmtDate(a.fechaRetiro)||'—';
+  if(key==='campamento')    return a.campamento ? '✓ Inscrito' : '—';
+  if(key==='situacion')     return a.situacion||'—';
   return a[key]||'—';
 }
 function getFieldLabel(key){ return PRINT_FIELDS.find(f=>f.key===key)?.label||key; }
