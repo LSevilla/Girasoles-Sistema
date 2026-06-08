@@ -1308,7 +1308,15 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{
   el.addEventListener('click',e=>{if(e.target===el)closeModal(el.id);});
 });
 
-function setContent(html){document.getElementById('page-content').innerHTML=html;}
+function setContent(html){
+  const pc = document.getElementById('page-content');
+  // Restaurar estilos normales cuando se cambia de módulo
+  if(!html.includes('print-preview-area')){
+    pc.style.padding = '';
+    pc.style.overflow = '';
+  }
+  pc.innerHTML = html;
+}
 
 // ═══════════════════════════════════════════════════
 //  DASHBOARD
@@ -5829,11 +5837,17 @@ function renderImpresion(){
   });
   const campos = getPrintCampos();
 
+  // Quitar padding del page-content para que el layout ocupe todo el ancho
+  const pc = document.getElementById('page-content');
+  const prevPadding = pc.style.padding;
+  pc.style.padding = '0';
+  pc.style.overflow = 'hidden';
+
   setContent(`
-    <div style="display:grid;grid-template-columns:290px 1fr;gap:0;height:calc(100vh - 64px);overflow:hidden">
+    <div style="display:grid;grid-template-columns:290px 1fr;gap:0;overflow:hidden">
 
       <!-- ── PANEL CONFIG ── -->
-      <div style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;height:100%;padding:16px;border-right:1px solid var(--border);background:var(--surface)">
+      <div style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:calc(100vh - 120px);position:sticky;top:0;padding:16px;border-right:1px solid var(--border);background:var(--surface)">
 
         <!-- Sala -->
         <div class="table-card" style="padding:0">
@@ -5913,7 +5927,7 @@ function renderImpresion(){
       </div>
 
       <!-- ── PANEL PREVIEW ── -->
-      <div style="overflow-y:auto;height:100%;padding:16px">
+      <div style="overflow-y:auto;max-height:calc(100vh - 120px);position:sticky;top:0;padding:16px">
       <div class="table-card" style="padding:0">
         <div class="table-header">
           <span class="table-title">Vista previa · ${printState.sala==='TODAS'?'Todas las salas':'Sala '+printState.sala} · ${counts[printState.sala]} alumno${counts[printState.sala]!==1?'s':''}</span>
