@@ -5830,17 +5830,18 @@ function renderImpresion(){
   const campos = getPrintCampos();
 
   setContent(`
-    <div style="display:grid;grid-template-columns:290px 1fr;gap:16px;align-items:start">
+    <div style="display:grid;grid-template-columns:290px 1fr;gap:0;height:calc(100vh - 64px);overflow:hidden">
 
       <!-- ── PANEL CONFIG ── -->
-      <div style="display:flex;flex-direction:column;gap:12px;position:sticky;top:70px">
+      <div style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;height:100%;padding:16px;border-right:1px solid var(--border);background:var(--surface)">
 
         <!-- Sala -->
         <div class="table-card" style="padding:0">
           <div class="table-header"><span class="table-title">🏫 Sala</span></div>
           <div style="padding:10px;display:flex;flex-direction:column;gap:5px">
             ${salas.map(s=>`
-              <div onclick="printState.sala='${s}';renderImpresion()"
+              <div onclick="printState.sala='${s}';updatePrintPreview()"
+                data-sala-btn="${s}"
                 style="display:flex;align-items:center;justify-content:space-between;
                        padding:8px 12px;border-radius:8px;cursor:pointer;transition:.12s;
                        background:${printState.sala===s?'rgba(79,110,247,.12)':'var(--surface2)'};
@@ -5856,7 +5857,7 @@ function renderImpresion(){
           <div class="table-header">
             <span class="table-title">📋 Columnas</span>
             <div style="display:flex;gap:4px">
-              <button class="btn btn-ghost btn-sm" onclick="printState.campos=PRINT_FIELDS.map(f=>f.key);renderImpresion()">Todas</button>
+              <button class="btn btn-ghost btn-sm" onclick="printState.campos=PRINT_FIELDS.map(f=>f.key);updatePrintPreview()">Todas</button>
               <button class="btn btn-ghost btn-sm" onclick="printState.campos=null;renderImpresion()">Defecto</button>
             </div>
           </div>
@@ -5888,7 +5889,7 @@ function renderImpresion(){
               </select>
             </div>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-              <input type="checkbox" ${printState.mostrarRetirados?'checked':''} onchange="printState.mostrarRetirados=this.checked;renderImpresion()" style="width:14px;height:14px;accent-color:var(--accent)">
+              <input type="checkbox" ${printState.mostrarRetirados?'checked':''} onchange="printState.mostrarRetirados=this.checked;updatePrintPreview()" style="width:14px;height:14px;accent-color:var(--accent)">
               <span style="font-size:.78rem;color:var(--text2)">Incluir alumnos retirados</span>
             </label>
           </div>
@@ -5912,18 +5913,35 @@ function renderImpresion(){
       </div>
 
       <!-- ── PANEL PREVIEW ── -->
+      <div style="overflow-y:auto;height:100%;padding:16px">
       <div class="table-card" style="padding:0">
         <div class="table-header">
           <span class="table-title">Vista previa · ${printState.sala==='TODAS'?'Todas las salas':'Sala '+printState.sala} · ${counts[printState.sala]} alumno${counts[printState.sala]!==1?'s':''}</span>
           <span style="font-size:.72rem;color:var(--text3)">${campos.length} columna${campos.length!==1?'s':''}</span>
         </div>
-        <div style="overflow-x:auto;min-height:200px" id="print-preview-area">
+        <div style="overflow-x:auto" id="print-preview-area">
           ${buildPrintPreviewHTML()}
         </div>
+      </div>
       </div>
 
     </div>
   `);
+}
+
+function updatePrintPreview(){
+  // Actualizar solo la zona de preview sin re-renderizar el panel de configuración
+  const area = document.getElementById('print-preview-area');
+  if(area) area.innerHTML = buildPrintPreviewHTML();
+  // Actualizar el título del preview (sala y columnas)
+  const title = document.querySelector('#print-preview-area')?.closest('.table-card')?.querySelector('.table-title');
+  // Actualizar sala activa en el panel izquierdo
+  document.querySelectorAll('[data-sala-btn]').forEach(el=>{
+    const s = el.getAttribute('data-sala-btn');
+    const isActive = s === printState.sala;
+    el.style.background = isActive ? 'rgba(79,110,247,.12)' : 'var(--surface2)';
+    el.style.border = '1.5px solid ' + (isActive ? 'rgba(79,110,247,.5)' : 'var(--border)');
+  });
 }
 
 function togglePrintField(key){
