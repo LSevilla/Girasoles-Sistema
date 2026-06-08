@@ -129,29 +129,7 @@ a{color:var(--accent);text-decoration:none;}
 .page-content{padding:24px 28px;flex:1;}
 
 /* ── MODO IMPRESIÓN ── */
-.print-layout {
-  display:grid;
-  grid-template-columns:290px 1fr;
-  gap:0;
-  align-items:start;
-}
-.print-panel-config {
-  position:sticky;
-  top:0;
-  height:100vh;
-  overflow-y:auto;
-  padding:16px;
-  border-right:1px solid var(--border);
-  background:var(--surface);
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  box-sizing:border-box;
-}
-.print-panel-preview {
-  padding:16px;
-  min-height:100vh;
-}
+
 
 /* ── CARDS ── */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px;}
@@ -1333,9 +1311,7 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{
   el.addEventListener('click',e=>{if(e.target===el)closeModal(el.id);});
 });
 
-function setContent(html){
-  document.getElementById('page-content').innerHTML = html;
-}
+function setContent(html){document.getElementById('page-content').innerHTML=html;}
 
 // ═══════════════════════════════════════════════════
 //  DASHBOARD
@@ -5857,11 +5833,10 @@ function renderImpresion(){
   const campos = getPrintCampos();
 
   setContent(`
-    <div style="margin:-24px -28px">
-    <div class="print-layout">
+    <div style="display:grid;grid-template-columns:290px 1fr;gap:16px;align-items:start">
 
       <!-- ── PANEL CONFIG ── -->
-      <div class="print-panel-config">
+      <div style="display:flex;flex-direction:column;gap:12px;position:sticky;top:70px">
 
         <!-- Sala -->
         <div class="table-card" style="padding:0">
@@ -5941,7 +5916,6 @@ function renderImpresion(){
       </div>
 
       <!-- ── PANEL PREVIEW ── -->
-      <div class="print-panel-preview">
       <div class="table-card" style="padding:0">
         <div class="table-header">
           <span class="table-title">Vista previa · ${printState.sala==='TODAS'?'Todas las salas':'Sala '+printState.sala} · ${counts[printState.sala]} alumno${counts[printState.sala]!==1?'s':''}</span>
@@ -5951,9 +5925,7 @@ function renderImpresion(){
           ${buildPrintPreviewHTML()}
         </div>
       </div>
-      </div>
 
-    </div>
     </div>
   `);
 }
