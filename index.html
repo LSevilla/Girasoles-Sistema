@@ -3788,8 +3788,11 @@ function calcularEstadoCobranza(alumnoId, periodo){
     // ── 3. Detect payment mode ──
   const paidBim    = CONCEPTO_ORDER_COB.filter(c=>c.includes('BIMESTRE')&&pagados.has(c));
   const paidMonths = ['MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'].filter(m=>pagados.has(m));
-  const isBimPayer = paidBim.length > 0 && paidMonths.length === 0;
-  const isMonPayer = paidMonths.length > 0 && paidBim.length === 0;
+  // Si pagó matrícula explícita → modalidad mensual
+  // (en bimestral la matrícula va incluida, nunca se paga sola)
+  const matriculaPagadaExplicita = pagados.has('MATRICULA');
+  const isBimPayer = paidBim.length > 0 && paidMonths.length === 0 && !matriculaPagadaExplicita;
+  const isMonPayer = paidMonths.length > 0 || (matriculaPagadaExplicita && paidBim.length === 0);
   // Mixed: has both — evaluate each concept individually
 
   // ── 4. Compute "covered through" month ──
@@ -4008,7 +4011,7 @@ function renderCobranza(){
               <th style="text-align:right;padding:9px 10px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#059669;border-bottom:2px solid #d0d8f0">Pagado</th>
               <th style="text-align:center;padding:9px 8px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#dc2626;border-bottom:2px solid #d0d8f0">Conceptos pendientes</th>
               <th style="text-align:center;padding:9px 8px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#5a6a90;border-bottom:2px solid #d0d8f0">Estado</th>
-              <th style="text-align:center;padding:9px 8px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#5a6a90;border-bottom:2px solid #d0d8f0">Acc.</th>
+              <th style="text-align:center;padding:9px 8px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#5a6a90;border-bottom:2px solid #d0d8f0">Ver · Imp · Copiar</th>
             </tr>
           </thead>
           <tbody id="cob-tbody">
@@ -4087,8 +4090,9 @@ function renderCobranzaRows(rows, hoy, periodo){
       </td>
       <td style="text-align:center;padding:8px">
         <div style="display:flex;gap:3px;justify-content:center">
-          <button class="btn btn-ghost btn-sm" onclick="abrirEstadoCuenta(${a.id})" title="Estado de cuenta">📄</button>
-          <button class="btn btn-ghost btn-sm" onclick="copiarEstadoCuentaTexto(${a.id})" title="Copiar para correo">📋</button>
+          <button class="btn btn-ghost btn-sm" onclick="abrirEstadoCuenta(${a.id})" title="Ver estado de cuenta" style="font-size:.8rem">📄</button>
+          <button class="btn btn-ghost btn-sm" onclick="imprimirEstadoCuentaDirecto(${a.id})" title="Imprimir estado de cuenta" style="font-size:.8rem">🖨️</button>
+          <button class="btn btn-ghost btn-sm" onclick="copiarEstadoCuentaTexto(${a.id})" title="Copiar para correo/WhatsApp" style="font-size:.8rem">📋</button>
         </div>
       </td>
     </tr>`;
@@ -4096,6 +4100,11 @@ function renderCobranzaRows(rows, hoy, periodo){
 }
 
 // ── ESTADO DE CUENTA (PDF / Print) ─────────────────
+function imprimirEstadoCuentaDirecto(alumnoId){
+  // Abre el estado de cuenta y dispara impresión automáticamente
+  abrirEstadoCuenta(alumnoId, true);
+}
+
 function buildEstadoCuenta(alumnoId){
   const a = state.alumnos.find(x=>x.id===alumnoId);
   if(!a) return null;
@@ -4151,7 +4160,7 @@ function buildEstadoCuenta(alumnoId){
   return {a, periodo, hoy, conceptRows, totalPagado, pendientes, pagos, apoderado, celApoderado, LABEL};
 }
 
-function abrirEstadoCuenta(alumnoId){
+function abrirEstadoCuenta(alumnoId, autoPrint=false){
   const data = buildEstadoCuenta(alumnoId);
   if(!data) return;
   const {a, periodo, hoy, conceptRows, totalPagado, pendientes, pagos, apoderado, celApoderado} = data;
@@ -4267,13 +4276,15 @@ function abrirEstadoCuenta(alumnoId){
       <span>Jardín Girasoles de Chicureo · Estado de Cuenta · Periodo ${periodo}</span>
       <span>Generado el ${hoy}</span>
     </div>
-    <scr'+'ipt>window.onload=()=>window.print();</scr'+'ipt>
+    <scr'+'ipt>${autoPrint?'window.onload=()=>{window.focus();window.print();}':''}</scr'+'ipt>
     </body></html>`;
 
   const win = window.open('','_blank','width=900,height=700');
   win.document.write(html);
   win.document.close();
-  setTimeout(()=>{try{win.print();}catch(e){}}, 800);
+  if(autoPrint){
+    setTimeout(()=>{try{win.focus();win.print();}catch(e){}}, 800);
+  }
 }
 
 function copiarEstadoCuentaTexto(alumnoId){
